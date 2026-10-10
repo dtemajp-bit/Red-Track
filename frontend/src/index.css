@@ -1,0 +1,68 @@
+:root {
+  --navy: #0f1b2e;
+  --navy-soft: #17263e;
+  --navy-border: #24354f;
+  --celeste: #22b8d9;
+  --celeste-dark: #0e93b0;
+  --celeste-bg: #e3f7fb;
+  --bg: #f4f6f9;
+  --card: #ffffff;
+  --border: #e2e6ed;
+  --text: #1c2333;
+  --text-muted: #6b7385;
+  --text-soft: #99a1b3;
+  --green: #17a35a;
+  --green-bg: #e3f7ec;
+  --orange: #d38414;
+  --orange-bg: #fdf1dd;
+  --red: #d5432f;
+  --red-bg: #fbe8e5;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.06);
+  --sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+p {
+  margin: 0;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input, select, textarea, button {
+  font-family: inherit;
+  font-size: 14px;
+}
+
+a {
+  color: var(--celeste-dark);
+}
+
+::selection {
+  background: var(--celeste-bg);
+}
