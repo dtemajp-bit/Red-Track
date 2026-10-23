@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Red-Track Móvil",
+    "slug": "red-track-movil",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#0f2747"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Red-Track usa tu ubicación para registrar la posición de la infraestructura de red.",
+        "NSCameraUsageDescription": "Red-Track usa la cámara para fotografiar la infraestructura registrada.",
+        "NSPhotoLibraryUsageDescription": "Red-Track necesita acceso a tus fotos para adjuntar imágenes de la infraestructura."
+      }
+    },
+    "android": {
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA"
+      ],
+      "package": "com.redtrack.movil",
+      "versionCode": 1
+    }
+  }
+}
