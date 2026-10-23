@@ -7,9 +7,10 @@ const ESTADOS = ['activo', 'inactivo', 'mantenimiento'];
 async function listarNodos(req, res) {
   try {
     const [nodos] = await pool.query(
-      `SELECT n.*, z.nombre AS nombre_zona
+      `SELECT n.*, z.nombre AS nombre_zona, u.nombre_completo AS registrado_por
        FROM nodos n
        LEFT JOIN zonas z ON n.id_zona = z.id_zona
+       LEFT JOIN usuarios u ON n.id_usuario_registra = u.id_usuario
        ORDER BY n.creado_en DESC`
     );
     res.json(nodos);
@@ -46,8 +47,15 @@ function validarNodo({ codigo, tipo, latitud, longitud, estado }) {
   return null;
 }
 
+// Convierte la fecha de captura enviada por el cliente (ISO) a un DATETIME válido.
+function fechaCaptura(valor) {
+  if (!valor) return null;
+  const f = new Date(valor);
+  return Number.isNaN(f.getTime()) ? null : f;
+}
+
 async function crearNodo(req, res) {
-  const { codigo, tipo, latitud, longitud, estado, observaciones, id_zona } = req.body;
+  const { codigo, tipo, latitud, longitud, estado, observaciones, id_zona, uuid_cliente, capturado_en } = req.body;
 
   const errorValidacion = validarNodo(req.body);
   if (errorValidacion) {
@@ -58,12 +66,35 @@ async function crearNodo(req, res) {
   const foto_url = req.file ? `/uploads/${req.file.filename}` : null;
   // Si no se indica zona, el punto queda en la zona del técnico que lo registra.
   const zona = id_zona || req.usuario.id_zona || null;
+  const uuid = uuid_cliente ? String(uuid_cliente).slice(0, 64) : null;
 
   try {
+    // Reintento de un envío que sí llegó (la respuesta se perdió): no se duplica.
+    if (uuid) {
+      const [[previo]] = await pool.query('SELECT id_nodo FROM nodos WHERE uuid_cliente = ?', [uuid]);
+      if (previo) {
+        descartarArchivo(req.file);
+        return res.json({ id_nodo: previo.id_nodo, duplicado: true, mensaje: 'Este registro ya estaba sincronizado' });
+      }
+    }
+
     const [resultado] = await pool.query(
-      `INSERT INTO nodos (codigo, tipo, latitud, longitud, estado, observaciones, foto_url, id_zona)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [String(codigo).trim(), tipo, latitud, longitud, estado || 'activo', observaciones || null, foto_url, zona]
+      `INSERT INTO nodos (codigo, tipo, latitud, longitud, estado, observaciones, foto_url, id_zona,
+                          id_usuario_registra, capturado_en, uuid_cliente)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        String(codigo).trim(),
+        tipo,
+        latitud,
+        longitud,
+        estado || 'activo',
+        observaciones || null,
+        foto_url,
+        zona,
+        req.usuario.id_usuario,
+        fechaCaptura(capturado_en),
+        uuid,
+      ]
     );
     res.status(201).json({ id_nodo: resultado.insertId, foto_url, mensaje: 'Nodo creado correctamente' });
   } catch (error) {
@@ -122,4 +153,4 @@ async function eliminarNodo(req, res) {
   }
 }
 
-module.exports = { listarNodos, obtenerNodo, crearNodo, actualizarNodo, eliminarNodo, validarNodo };
+module.exports = { fechaCaptura, listarNodos, obtenerNodo, crearNodo, actualizarNodo, eliminarNodo, validarNodo };

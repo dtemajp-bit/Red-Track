@@ -4,6 +4,8 @@ import Card from '../ui/Card';
 import Badge from '../ui/Badge';
 import cliente from '../api/cliente';
 import { IconAlert } from '../ui/Icons';
+import { useAuth } from '../context/AuthContext';
+import { agregarACola, esErrorDeRed } from '../lib/cola';
 
 const PRIORIDADES = [
   { valor: 'baja', etiqueta: 'Baja' },
@@ -28,6 +30,8 @@ const campo = {
 };
 
 export default function Incidencias() {
+  const { usuario } = useAuth();
+  const [aviso, setAviso] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [prioridad, setPrioridad] = useState('media');
   const [incidencias, setIncidencias] = useState([]);
@@ -56,13 +60,22 @@ export default function Incidencias() {
     evento.preventDefault();
     if (!descripcion.trim()) return;
     setEnviando(true);
+    setAviso('');
     try {
       await cliente.post('/incidencias', { descripcion, prioridad });
       setDescripcion('');
       setPrioridad('media');
       await cargarIncidencias();
-    } catch {
-      setError('No se pudo registrar la incidencia');
+    } catch (err) {
+      if (esErrorDeRed(err)) {
+        agregarACola({ tipo: 'incidencia', id_usuario: usuario.id_usuario, datos: { descripcion, prioridad } });
+        setDescripcion('');
+        setPrioridad('media');
+        setError('');
+        setAviso('Sin conexión: la incidencia quedó guardada en este equipo. Envíala desde Sincronización.');
+      } else {
+        setError(err.response?.data?.mensaje || 'No se pudo registrar la incidencia');
+      }
     } finally {
       setEnviando(false);
     }
@@ -108,6 +121,7 @@ export default function Incidencias() {
             </div>
 
             {error && <p style={{ fontSize: 12.5, color: 'var(--red)' }}>{error}</p>}
+            {aviso && <p style={{ fontSize: 12.5, color: 'var(--orange)' }}>{aviso}</p>}
 
             <button
               type="submit"

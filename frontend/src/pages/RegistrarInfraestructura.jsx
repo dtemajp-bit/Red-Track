@@ -4,6 +4,8 @@ import AppLayout from '../components/AppLayout';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
 import { IconAlert, IconCamera, IconPin } from '../ui/Icons';
+import { useAuth } from '../context/AuthContext';
+import { agregarACola, esErrorDeRed, reducirFoto } from '../lib/cola';
 
 const TIPOS = [
   { valor: 'poste', etiqueta: 'Poste' },
@@ -20,6 +22,8 @@ const ESTADOS = [
 const VACIO = { codigo: '', tipo: 'poste', latitud: '', longitud: '', estado: 'activo', observaciones: '' };
 
 export default function RegistrarInfraestructura() {
+  const { usuario } = useAuth();
+  const [aviso, setAviso] = useState('');
   const [nodos, setNodos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -74,6 +78,7 @@ export default function RegistrarInfraestructura() {
   async function manejarGuardar(evento) {
     evento.preventDefault();
     setError('');
+    setAviso('');
     setGuardando(true);
     try {
       const datos = new FormData();
@@ -92,7 +97,35 @@ export default function RegistrarInfraestructura() {
       capturarUbicacion();
       cargarNodos();
     } catch (err) {
-      setError(err.response?.data?.mensaje || 'Error al guardar el registro');
+      if (esErrorDeRed(err)) {
+        // Sin conexión: se guarda en este navegador y se envía desde Sincronización.
+        if (!form.codigo.trim() || !form.latitud || !form.longitud) {
+          setError('Completa el código y la ubicación antes de guardar.');
+        } else {
+          try {
+            const fotoReducida = foto ? await reducirFoto(foto) : null;
+            const guardado = agregarACola({
+              tipo: 'nodo',
+              id_usuario: usuario.id_usuario,
+              datos: { ...form },
+              foto: fotoReducida,
+            });
+            setForm(VACIO);
+            setFoto(null);
+            setPrevisualizacion(null);
+            capturarUbicacion();
+            setAviso(
+              guardado.fotoOmitida
+                ? 'Sin conexión: el registro quedó guardado, pero la foto no cabía y se omitió. Envíalo desde Sincronización.'
+                : 'Sin conexión: el registro quedó guardado en este equipo. Envíalo desde Sincronización.'
+            );
+          } catch (e) {
+            setError(e.message);
+          }
+        }
+      } else {
+        setError(err.response?.data?.mensaje || 'Error al guardar el registro');
+      }
     } finally {
       setGuardando(false);
     }
@@ -257,6 +290,7 @@ export default function RegistrarInfraestructura() {
             </div>
 
             {error && <p style={{ color: 'var(--red)', fontSize: 13 }}>{error}</p>}
+            {aviso && <p style={{ color: 'var(--orange)', fontSize: 13 }}>{aviso}</p>}
 
             <button
               type="submit"

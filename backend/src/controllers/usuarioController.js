@@ -53,18 +53,68 @@ async function crearUsuario(req, res) {
 }
 
 async function actualizarUsuario(req, res) {
-  const { nombre_completo, id_rol, id_zona } = req.body;
+  const { nombre_completo, correo, id_rol, id_zona } = req.body;
+
+  if (!nombre_completo || !String(nombre_completo).trim() || !id_rol) {
+    return res.status(400).json({ mensaje: 'nombre_completo e id_rol son requeridos' });
+  }
+  if (correo !== undefined && !/^\S+@\S+\.\S+$/.test(String(correo).trim())) {
+    return res.status(400).json({ mensaje: 'El correo no tiene un formato válido' });
+  }
+
   try {
-    const [resultado] = await pool.query(
-      `UPDATE usuarios SET nombre_completo = ?, id_rol = ?, id_zona = ? WHERE id_usuario = ?`,
-      [nombre_completo, id_rol, id_zona || null, req.params.id]
+    const [actual] = await pool.query(
+      'SELECT u.id_usuario, r.nombre AS rol FROM usuarios u JOIN roles r ON u.id_rol = r.id_rol WHERE u.id_usuario = ?',
+      [req.params.id]
     );
-    if (resultado.affectedRows === 0) {
-      return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+    if (actual.length === 0) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+
+    // Evita que el administrador se quite a sí mismo el rol y se bloquee.
+    if (Number(req.params.id) === req.usuario.id_usuario) {
+      const [[rolNuevo]] = await pool.query('SELECT nombre FROM roles WHERE id_rol = ?', [id_rol]);
+      if (rolNuevo && rolNuevo.nombre !== 'administrador') {
+        return res.status(400).json({ mensaje: 'No puedes quitarte tu propio rol de administrador' });
+      }
     }
+
+    const campos = ['nombre_completo = ?', 'id_rol = ?', 'id_zona = ?'];
+    const valores = [String(nombre_completo).trim(), id_rol, id_zona || null];
+    if (correo !== undefined) {
+      campos.push('correo = ?');
+      valores.push(String(correo).trim());
+    }
+    valores.push(req.params.id);
+
+    await pool.query(`UPDATE usuarios SET ${campos.join(', ')} WHERE id_usuario = ?`, valores);
     res.json({ mensaje: 'Usuario actualizado correctamente' });
   } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ mensaje: 'Ya existe un usuario con ese correo' });
+    }
+    if (error.code === 'ER_NO_REFERENCED_ROW_2') {
+      return res.status(400).json({ mensaje: 'El rol o la zona elegidos no existen' });
+    }
     console.error('Error al actualizar usuario:', error);
+    res.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+}
+
+// El administrador restablece la contraseña de un usuario (ej. si la olvidó).
+async function restablecerContrasena(req, res) {
+  const { contrasena } = req.body;
+  if (!contrasena || String(contrasena).length < 8) {
+    return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 8 caracteres' });
+  }
+  try {
+    const hash = await bcrypt.hash(String(contrasena), 10);
+    const [resultado] = await pool.query('UPDATE usuarios SET contrasena_hash = ? WHERE id_usuario = ?', [
+      hash,
+      req.params.id,
+    ]);
+    if (resultado.affectedRows === 0) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+    res.json({ mensaje: 'Contraseña restablecida correctamente' });
+  } catch (error) {
+    console.error('Error al restablecer contraseña:', error);
     res.status(500).json({ mensaje: 'Error interno del servidor' });
   }
 }
@@ -121,4 +171,5 @@ module.exports = {
   crearUsuario,
   actualizarUsuario,
   cambiarEstadoUsuario,
+  restablecerContrasena,
 };

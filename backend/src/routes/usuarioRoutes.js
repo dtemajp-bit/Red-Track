@@ -8,6 +8,7 @@ const {
   crearUsuario,
   actualizarUsuario,
   cambiarEstadoUsuario,
+  restablecerContrasena,
 } = require('../controllers/usuarioController');
 
 router.use(verificarToken);
@@ -19,5 +20,6 @@ router.get('/', verificarAdmin, listarUsuarios);
 router.post('/', verificarAdmin, crearUsuario);
 router.put('/:id', verificarAdmin, actualizarUsuario);
 router.put('/:id/estado', verificarAdmin, cambiarEstadoUsuario);
+router.put('/:id/contrasena', verificarAdmin, restablecerContrasena);
 
 module.exports = router;

@@ -34,6 +34,18 @@ async function asegurarColumna(tabla, columna, definicion) {
   }
 }
 
+async function asegurarIndiceUnico(tabla, nombre, columna) {
+  const [filas] = await pool.query(
+    `SELECT 1 FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?`,
+    [tabla, nombre]
+  );
+  if (filas.length === 0) {
+    await pool.query(`ALTER TABLE ${tabla} ADD UNIQUE INDEX ${nombre} (${columna})`);
+    console.log(`Índice agregado: ${tabla}.${nombre}`);
+  }
+}
+
 async function inicializarBaseDeDatos() {
   for (const sentencia of sentenciasDelEsquema()) {
     await pool.query(sentencia);
@@ -42,6 +54,17 @@ async function inicializarBaseDeDatos() {
   await asegurarColumna('nodos', 'observaciones', 'TEXT NULL');
   await asegurarColumna('nodos', 'foto_url', 'VARCHAR(255) NULL');
   await asegurarColumna('usuarios', 'foto_perfil', 'VARCHAR(255) NULL');
+
+  // Quién registró cada punto/incidencia y cuándo se capturó realmente en campo
+  // (si se guardó sin señal, capturado_en es anterior a creado_en).
+  // uuid_cliente evita duplicados si un envío se reintenta.
+  await asegurarColumna('nodos', 'id_usuario_registra', 'INT NULL');
+  await asegurarColumna('nodos', 'capturado_en', 'DATETIME NULL');
+  await asegurarColumna('nodos', 'uuid_cliente', 'VARCHAR(64) NULL');
+  await asegurarColumna('incidencias', 'capturado_en', 'DATETIME NULL');
+  await asegurarColumna('incidencias', 'uuid_cliente', 'VARCHAR(64) NULL');
+  await asegurarIndiceUnico('nodos', 'uq_nodos_uuid_cliente', 'uuid_cliente');
+  await asegurarIndiceUnico('incidencias', 'uq_incidencias_uuid_cliente', 'uuid_cliente');
 
   await pool.query("INSERT IGNORE INTO roles (nombre) VALUES ('administrador'), ('tecnico'), ('supervisor')");
 

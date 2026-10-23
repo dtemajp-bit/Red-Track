@@ -23,6 +23,8 @@ export default function AdminRutas({ tecnicos, mostrarForm, onCerrarForm }) {
   const [enviando, setEnviando] = useState(false);
   const [form, setForm] = useState({ nombre: '', id_tecnico: '', fecha_programada: hoy() });
   const [seleccion, setSeleccion] = useState([]); // ids de nodos, en el orden elegido
+  const [editandoId, setEditandoId] = useState(null); // null = creando una ruta nueva
+  const [mensaje, setMensaje] = useState('');
 
   async function cargar() {
     try {
@@ -43,6 +45,45 @@ export default function AdminRutas({ tecnicos, mostrarForm, onCerrarForm }) {
     setSeleccion((prev) => (prev.includes(id) ? prev.filter((n) => n !== id) : [...prev, id]));
   }
 
+  function cancelar() {
+    setForm({ nombre: '', id_tecnico: '', fecha_programada: hoy() });
+    setSeleccion([]);
+    setEditandoId(null);
+    onCerrarForm();
+  }
+
+  async function editar(ruta) {
+    setError('');
+    setMensaje('');
+    try {
+      const { data } = await cliente.get(`/rutas/${ruta.id_ruta}`);
+      setForm({
+        nombre: data.nombre,
+        id_tecnico: String(data.id_tecnico),
+        fecha_programada: String(data.fecha_programada).slice(0, 10),
+      });
+      setSeleccion(data.puntos.map((p) => p.id_nodo));
+      setEditandoId(ruta.id_ruta);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      setError('No se pudo cargar la ruta para editarla');
+    }
+  }
+
+  async function eliminar(ruta) {
+    if (!window.confirm(`¿Eliminar la ruta "${ruta.nombre}"? Se pierde su avance y esta acción no se puede deshacer.`)) return;
+    setError('');
+    setMensaje('');
+    try {
+      await cliente.delete(`/rutas/${ruta.id_ruta}`);
+      if (editandoId === ruta.id_ruta) cancelar();
+      setMensaje('Ruta eliminada');
+      await cargar();
+    } catch (err) {
+      setError(err.response?.data?.mensaje || 'No se pudo eliminar la ruta');
+    }
+  }
+
   async function guardar(evento) {
     evento.preventDefault();
     if (seleccion.length === 0) {
@@ -52,18 +93,23 @@ export default function AdminRutas({ tecnicos, mostrarForm, onCerrarForm }) {
     setEnviando(true);
     setError('');
     try {
-      await cliente.post('/rutas', {
+      const cuerpo = {
         nombre: form.nombre,
         id_tecnico: Number(form.id_tecnico),
         fecha_programada: form.fecha_programada,
         nodos: seleccion,
-      });
-      setForm({ nombre: '', id_tecnico: '', fecha_programada: hoy() });
-      setSeleccion([]);
-      onCerrarForm();
+      };
+      if (editandoId) {
+        await cliente.put(`/rutas/${editandoId}`, cuerpo);
+        setMensaje('Ruta actualizada correctamente');
+      } else {
+        await cliente.post('/rutas', cuerpo);
+        setMensaje('Ruta creada correctamente');
+      }
+      cancelar();
       await cargar();
     } catch (err) {
-      setError(err.response?.data?.mensaje || 'No se pudo crear la ruta');
+      setError(err.response?.data?.mensaje || (editandoId ? 'No se pudo actualizar la ruta' : 'No se pudo crear la ruta'));
     } finally {
       setEnviando(false);
     }
@@ -72,8 +118,9 @@ export default function AdminRutas({ tecnicos, mostrarForm, onCerrarForm }) {
   return (
     <div>
       {error && <p style={{ fontSize: 12.5, color: 'var(--red)', marginBottom: 12 }}>{error}</p>}
+      {mensaje && <p style={{ fontSize: 12.5, color: 'var(--green)', marginBottom: 12 }}>{mensaje}</p>}
 
-      {mostrarForm && (
+      {(mostrarForm || editandoId) && (
         <form
           onSubmit={guardar}
           style={{ padding: 14, marginBottom: 16, border: '1px solid var(--border)', borderRadius: 8 }}
@@ -96,6 +143,7 @@ export default function AdminRutas({ tecnicos, mostrarForm, onCerrarForm }) {
               {tecnicos.map((t) => (
                 <option key={t.id_usuario} value={t.id_usuario}>
                   {t.nombre_completo}
+                  {t.activo ? '' : ' (inactivo)'}
                 </option>
               ))}
             </select>
@@ -108,6 +156,11 @@ export default function AdminRutas({ tecnicos, mostrarForm, onCerrarForm }) {
             />
           </div>
 
+          {editandoId && (
+            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
+              Editando ruta · los puntos que ya estaban visitados conservan su avance
+            </p>
+          )}
           <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 6 }}>
             Puntos de la ruta (se visitan en el orden en que los marques): {seleccion.length} elegidos
           </p>
@@ -152,21 +205,39 @@ export default function AdminRutas({ tecnicos, mostrarForm, onCerrarForm }) {
             })}
           </div>
 
-          <button
-            type="submit"
-            disabled={enviando}
-            style={{
-              padding: '9px 16px',
-              borderRadius: 8,
-              border: 'none',
-              background: 'var(--navy)',
-              color: '#fff',
-              fontWeight: 600,
-              fontSize: 13.5,
-            }}
-          >
-            {enviando ? 'Guardando…' : 'Guardar ruta'}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="submit"
+              disabled={enviando}
+              style={{
+                padding: '9px 16px',
+                borderRadius: 8,
+                border: 'none',
+                background: 'var(--navy)',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: 13.5,
+              }}
+            >
+              {enviando ? 'Guardando…' : editandoId ? 'Guardar cambios' : 'Guardar ruta'}
+            </button>
+            {editandoId && (
+              <button
+                type="button"
+                onClick={cancelar}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: 8,
+                  border: '1px solid var(--border)',
+                  background: '#fff',
+                  fontWeight: 600,
+                  fontSize: 13.5,
+                }}
+              >
+                Cancelar edición
+              </button>
+            )}
+          </div>
         </form>
       )}
 
@@ -178,6 +249,7 @@ export default function AdminRutas({ tecnicos, mostrarForm, onCerrarForm }) {
             <th style={th}>Fecha</th>
             <th style={th}>Avance</th>
             <th style={th}>Estado</th>
+            <th style={th}>Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -192,11 +264,25 @@ export default function AdminRutas({ tecnicos, mostrarForm, onCerrarForm }) {
               <td style={td}>
                 <Badge>{r.estado}</Badge>
               </td>
+              <td style={{ ...td, display: 'flex', gap: 6 }}>
+                <button
+                  onClick={() => editar(r)}
+                  style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid var(--border)', background: '#fff', fontWeight: 600, fontSize: 12.5 }}
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => eliminar(r)}
+                  style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid var(--red)', background: '#fff', color: 'var(--red)', fontWeight: 600, fontSize: 12.5 }}
+                >
+                  Eliminar
+                </button>
+              </td>
             </tr>
           ))}
           {rutas.length === 0 && (
             <tr>
-              <td style={{ ...td, color: 'var(--text-muted)' }} colSpan={5}>
+              <td style={{ ...td, color: 'var(--text-muted)' }} colSpan={6}>
                 Todavía no hay rutas. Crea una con el botón "Nueva ruta".
               </td>
             </tr>
