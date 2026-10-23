@@ -55,6 +55,31 @@ const th = { textAlign: 'left', padding: '9px 6px', fontSize: 12, color: 'var(--
 const td = { padding: '11px 6px', fontSize: 13.5, borderTop: '1px solid var(--border)' };
 const campo = { padding: '9px 11px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13.5 };
 
+const aTexto = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// Periodos rápidos: semana (lunes a domingo) y mes calendario.
+function periodo(tipo) {
+  const hoy = new Date();
+  if (tipo === 'semana' || tipo === 'semana-pasada') {
+    const lunes = new Date(hoy);
+    lunes.setDate(hoy.getDate() - ((hoy.getDay() + 6) % 7) - (tipo === 'semana-pasada' ? 7 : 0));
+    const domingo = new Date(lunes);
+    domingo.setDate(lunes.getDate() + 6);
+    return { desde: aTexto(lunes), hasta: aTexto(domingo) };
+  }
+  const base = new Date(hoy.getFullYear(), hoy.getMonth() - (tipo === 'mes-pasado' ? 1 : 0), 1);
+  const fin = new Date(base.getFullYear(), base.getMonth() + 1, 0);
+  return { desde: aTexto(base), hasta: aTexto(fin) };
+}
+
+const PERIODOS = [
+  { id: 'semana', etiqueta: 'Esta semana' },
+  { id: 'semana-pasada', etiqueta: 'Semana pasada' },
+  { id: 'mes', etiqueta: 'Este mes' },
+  { id: 'mes-pasado', etiqueta: 'Mes pasado' },
+];
+
 function Indicador({ titulo, valor, detalle }) {
   return (
     <div style={{ flex: '1 1 160px', padding: '14px 16px', borderRadius: 10, border: '1px solid var(--border)', background: '#fff' }}>
@@ -233,6 +258,31 @@ export default function Reportes() {
         )}
       </Card>
 
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 }}>
+        <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>Periodo rápido:</span>
+        {PERIODOS.map((p) => {
+          const rango = periodo(p.id);
+          const activo = filtros.desde === rango.desde && filtros.hasta === rango.hasta;
+          return (
+            <button
+              key={p.id}
+              onClick={() => setFiltros((prev) => ({ ...prev, ...rango }))}
+              style={{
+                padding: '6px 13px',
+                borderRadius: 999,
+                border: '1px solid var(--border)',
+                background: activo ? 'var(--navy)' : '#fff',
+                color: activo ? '#fff' : 'var(--text)',
+                fontWeight: 600,
+                fontSize: 12.5,
+              }}
+            >
+              {p.etiqueta}
+            </button>
+          );
+        })}
+      </div>
+
       {resumen && !cargando && (
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 20 }}>
           <Indicador titulo="Técnicos" valor={resumen.tecnicos} />
@@ -272,7 +322,7 @@ export default function Reportes() {
                                 style={{
                                   width: `${Math.min(100, Number(f[c.clave]) || 0)}%`,
                                   height: '100%',
-                                  background: Number(f[c.clave]) >= 80 ? 'var(--green)' : Number(f[c.clave]) >= 50 ? 'var(--celeste)' : 'var(--orange)',
+                                  background: Number(f[c.clave]) >= 80 ? 'var(--green)' : Number(f[c.clave]) >= 50 ? 'var(--orange)' : 'var(--red)',
                                 }}
                               />
                             </div>

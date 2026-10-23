@@ -24,10 +24,10 @@ const MAPA_TONO = {
 
 const ESTILOS = {
   verde: { color: 'var(--green)', background: 'var(--green-bg)' },
-  celeste: { color: 'var(--celeste-dark)', background: 'var(--celeste-bg)' },
+  celeste: { color: 'var(--info)', background: 'var(--info-bg)' },
   naranja: { color: 'var(--orange)', background: 'var(--orange-bg)' },
   rojo: { color: 'var(--red)', background: 'var(--red-bg)' },
-  neutro: { color: 'var(--text-muted)', background: '#eef0f4' },
+  neutro: { color: 'var(--gris)', background: 'var(--gris-bg)' },
 };
 
 export default function Badge({ children, tono }) {

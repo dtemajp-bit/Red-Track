@@ -70,7 +70,7 @@ export default function AppLayout({ eyebrow = 'PANEL', title, children }) {
               justifyContent: 'center',
             }}
           >
-            <IconMap size={15} color="#0f1b2e" />
+            <IconMap size={15} color="#ffffff" />
           </span>
           RED-TRACK
         </div>

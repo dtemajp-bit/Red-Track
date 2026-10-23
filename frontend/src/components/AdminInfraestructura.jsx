@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import cliente from '../api/cliente';
+import { eliminarConConfirmacion } from '../lib/borrar';
 import Badge from '../ui/Badge';
 import Modal, { Etiqueta, estiloCampo, estiloBotonPrimario, estiloBotonSecundario, estiloBotonPeligro } from '../ui/Modal';
 
@@ -23,6 +24,7 @@ export default function AdminInfraestructura({ zonas }) {
   const [nodos, setNodos] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [editando, setEditando] = useState(null);
+  const [seleccion, setSeleccion] = useState([]);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
   const [mensaje, setMensaje] = useState('');
@@ -74,16 +76,48 @@ export default function AdminInfraestructura({ zonas }) {
   }
 
   async function eliminar(nodo) {
-    if (!window.confirm(`¿Eliminar el punto "${nodo.codigo}"? Esta acción no se puede deshacer.`)) return;
     setError('');
     setMensaje('');
     try {
-      await cliente.delete(`/nodos/${nodo.id_nodo}`);
-      setMensaje('Punto eliminado');
-      await cargar();
+      const hecho = await eliminarConConfirmacion(
+        `/nodos/${nodo.id_nodo}`,
+        `¿Eliminar el punto "${nodo.codigo}"? Esta acción no se puede deshacer.`,
+        'Si continúas se borrarán también sus incidencias, cables y paradas de ruta. ¿Eliminar de todos modos?'
+      );
+      if (hecho) {
+        setMensaje('Punto eliminado');
+        await cargar();
+      }
     } catch (err) {
       setError(err.response?.data?.mensaje || 'No se pudo eliminar el punto');
     }
+  }
+
+  function alternar(id) {
+    setSeleccion((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  async function eliminarSeleccionados() {
+    if (
+      !window.confirm(
+        `¿Eliminar ${seleccion.length} punto(s)? Se borrarán también sus incidencias, cables y paradas de ruta. Esta acción no se puede deshacer.`
+      )
+    )
+      return;
+    setError('');
+    setMensaje('');
+    let fallidos = 0;
+    for (const id of seleccion) {
+      try {
+        await cliente.delete(`/nodos/${id}?forzar=true`);
+      } catch {
+        fallidos += 1;
+      }
+    }
+    setSeleccion([]);
+    setMensaje(`${seleccion.length - fallidos} punto(s) eliminado(s)`);
+    if (fallidos) setError(`${fallidos} no se pudieron eliminar`);
+    await cargar();
   }
 
   return (
@@ -94,6 +128,11 @@ export default function AdminInfraestructura({ zonas }) {
         onChange={(e) => setBusqueda(e.target.value)}
         style={{ ...estiloCampo, maxWidth: 340, marginBottom: 14 }}
       />
+      {seleccion.length > 0 && (
+        <button onClick={eliminarSeleccionados} style={{ ...estiloBotonPeligro, marginBottom: 12, marginLeft: 10 }}>
+          Eliminar seleccionados ({seleccion.length})
+        </button>
+      )}
       {error && !editando && <p style={{ fontSize: 12.5, color: 'var(--red)', marginBottom: 10 }}>{error}</p>}
       {mensaje && <p style={{ fontSize: 12.5, color: 'var(--green)', marginBottom: 10 }}>{mensaje}</p>}
 
@@ -101,6 +140,14 @@ export default function AdminInfraestructura({ zonas }) {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
+              <th style={th}>
+                <input
+                  type="checkbox"
+                  aria-label="Seleccionar todos"
+                  checked={visibles.length > 0 && visibles.every((n) => seleccion.includes(n.id_nodo))}
+                  onChange={(e) => setSeleccion(e.target.checked ? visibles.map((n) => n.id_nodo) : [])}
+                />
+              </th>
               <th style={th}>Código</th>
               <th style={th}>Tipo</th>
               <th style={th}>Estado</th>
@@ -112,6 +159,9 @@ export default function AdminInfraestructura({ zonas }) {
           <tbody>
             {visibles.map((n) => (
               <tr key={n.id_nodo}>
+                <td style={td}>
+                  <input type="checkbox" checked={seleccion.includes(n.id_nodo)} onChange={() => alternar(n.id_nodo)} />
+                </td>
                 <td style={{ ...td, fontWeight: 600 }}>{n.codigo}</td>
                 <td style={td}>{String(n.tipo).replace('_', ' ')}</td>
                 <td style={td}>
@@ -145,7 +195,7 @@ export default function AdminInfraestructura({ zonas }) {
             ))}
             {visibles.length === 0 && (
               <tr>
-                <td style={{ ...td, color: 'var(--text-muted)' }} colSpan={6}>
+                <td style={{ ...td, color: 'var(--text-muted)' }} colSpan={7}>
                   No hay puntos de infraestructura{busqueda ? ' que coincidan con la búsqueda' : ' registrados todavía'}.
                 </td>
               </tr>

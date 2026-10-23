@@ -109,7 +109,7 @@ export default function PanelTecnico() {
                       </span>
                     </div>
                     <div style={{ height: 8, borderRadius: 4, background: '#e7eaf0', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${porcentaje}%`, background: 'var(--celeste)' }} />
+                      <div style={{ height: '100%', width: `${porcentaje}%`, background: 'var(--navy)' }} />
                     </div>
                   </div>
                 );

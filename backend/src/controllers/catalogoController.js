@@ -57,14 +57,21 @@ async function actualizarZona(req, res) {
 }
 
 async function eliminarZona(req, res) {
+  const forzar = req.query.forzar === 'true';
   try {
+    if (forzar) {
+      // Los usuarios y puntos de la zona quedan "sin zona"; no se borran.
+      await pool.query('UPDATE usuarios SET id_zona = NULL WHERE id_zona = ?', [req.params.id]);
+      await pool.query('UPDATE nodos SET id_zona = NULL WHERE id_zona = ?', [req.params.id]);
+    }
     const [resultado] = await pool.query('DELETE FROM zonas WHERE id_zona = ?', [req.params.id]);
     if (resultado.affectedRows === 0) return res.status(404).json({ mensaje: 'Zona no encontrada' });
     res.json({ mensaje: 'Zona eliminada correctamente' });
   } catch (error) {
     if (error.code === 'ER_ROW_IS_REFERENCED_2') {
       return res.status(409).json({
-        mensaje: 'No se puede eliminar: hay usuarios o puntos de infraestructura en esta zona. Reasígnalos primero.',
+        mensaje: 'Hay usuarios o puntos de infraestructura en esta zona.',
+        requiereForzar: true,
       });
     }
     console.error('Error al eliminar zona:', error);

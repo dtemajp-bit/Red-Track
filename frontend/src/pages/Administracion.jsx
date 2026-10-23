@@ -3,6 +3,7 @@ import AppLayout from '../components/AppLayout';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
 import cliente from '../api/cliente';
+import { eliminarConConfirmacion } from '../lib/borrar';
 import { IconPlus } from '../ui/Icons';
 import AdminRutas from '../components/AdminRutas';
 import AdminInfraestructura from '../components/AdminInfraestructura';
@@ -152,14 +153,56 @@ export default function Administracion() {
   }
 
   async function eliminarZona(zona) {
-    if (!window.confirm(`¿Eliminar la zona "${zona.nombre}"? Esta acción no se puede deshacer.`)) return;
     setError('');
+    setMensaje('');
     try {
-      await cliente.delete(`/catalogos/zonas/${zona.id_zona}`);
-      setMensaje('Zona eliminada');
-      await cargarTodo();
+      const hecho = await eliminarConConfirmacion(
+        `/catalogos/zonas/${zona.id_zona}`,
+        `¿Eliminar la zona "${zona.nombre}"? Esta acción no se puede deshacer.`,
+        'Si continúas, los usuarios y puntos de esa zona quedarán "sin zona" (no se borran). ¿Eliminar de todos modos?'
+      );
+      if (hecho) {
+        setMensaje('Zona eliminada');
+        await cargarTodo();
+      }
     } catch (err) {
       setError(err.response?.data?.mensaje || 'No se pudo eliminar la zona');
+    }
+  }
+
+  async function eliminarUsuario(u) {
+    setError('');
+    setMensaje('');
+    try {
+      const hecho = await eliminarConConfirmacion(
+        `/usuarios/${u.id_usuario}`,
+        `¿Eliminar al usuario "${u.nombre_completo}"? Esta acción no se puede deshacer.`,
+        `Si continúas se borrarán también sus rutas, incidencias y pendientes. La infraestructura que registró se conserva. ¿Eliminar de todos modos?`
+      );
+      if (hecho) {
+        setMensaje('Usuario eliminado');
+        await cargarTodo();
+      }
+    } catch (err) {
+      setError(err.response?.data?.mensaje || 'No se pudo eliminar el usuario');
+    }
+  }
+
+  async function limpiarDatos() {
+    const texto = window.prompt(
+      'Se borrará TODA la infraestructura, incidencias, rutas y pendientes de sincronización (los usuarios y zonas se conservan).\n\nEscribe BORRAR para confirmar:'
+    );
+    if (texto === null) return;
+    setError('');
+    setMensaje('');
+    try {
+      const res = await cliente.post('/admin/limpiar-datos', { confirmacion: texto.trim() });
+      const e = res.data.eliminados;
+      setMensaje(
+        `Datos eliminados: ${e.infraestructura} puntos, ${e.incidencias} incidencias, ${e.rutas} rutas.`
+      );
+    } catch (err) {
+      setError(err.response?.data?.mensaje || 'No se pudieron borrar los datos');
     }
   }
 
@@ -173,7 +216,7 @@ export default function Administracion() {
       <Card
         subtitle={cargando ? 'Cargando…' : undefined}
         action={
-          tab === 'infraestructura' || tab === 'incidencias' ? null : (
+          tab === 'infraestructura' || tab === 'incidencias' || tab === 'datos' ? null : (
           <button
             onClick={() => {
               if (tab === 'usuarios') setMostrarForm((v) => !v);
@@ -205,6 +248,7 @@ export default function Administracion() {
             { id: 'rutas', label: 'Rutas' },
             { id: 'infraestructura', label: 'Infraestructura' },
             { id: 'incidencias', label: 'Incidencias' },
+            { id: 'datos', label: 'Datos de prueba' },
           ].map((t) => (
             <button
               key={t.id}
@@ -398,12 +442,30 @@ export default function Administracion() {
                       style={{ ...estiloBotonSecundario, padding: '5px 12px', fontSize: 12.5 }}
                     >
                       Editar
+                    </button>{' '}
+                    <button
+                      onClick={() => eliminarUsuario(u)}
+                      style={{ ...estiloBotonPeligro, padding: '5px 12px', fontSize: 12.5 }}
+                    >
+                      Eliminar
                     </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        ) : tab === 'datos' ? (
+          <div style={{ maxWidth: 560 }}>
+            <h3 style={{ fontSize: 15, marginBottom: 6 }}>Borrar datos de prueba</h3>
+            <p style={{ fontSize: 13.5, color: 'var(--text-muted)', marginBottom: 14 }}>
+              Elimina toda la infraestructura (con sus fotos), incidencias, rutas y registros pendientes de
+              sincronización, para empezar con datos reales. Los usuarios y las zonas se conservan. Si solo quieres
+              quitar algunos, usa las pestañas Infraestructura, Incidencias o Rutas.
+            </p>
+            <button onClick={limpiarDatos} style={estiloBotonPeligro}>
+              Borrar todos los datos de prueba
+            </button>
+          </div>
         ) : tab === 'infraestructura' ? (
           <AdminInfraestructura zonas={zonas} />
         ) : tab === 'incidencias' ? (

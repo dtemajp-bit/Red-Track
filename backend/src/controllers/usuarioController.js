@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
+const { borrarUsuarioEnCascada } = require('./adminController');
 
 async function listarUsuarios(req, res) {
   try {
@@ -144,6 +145,44 @@ async function cambiarEstadoUsuario(req, res) {
   }
 }
 
+// Elimina un usuario. Si tiene rutas o incidencias, responde 409 con requiereForzar;
+// con ?forzar=true se borra también todo lo suyo (rutas, incidencias, pendientes).
+async function eliminarUsuario(req, res) {
+  if (Number(req.params.id) === req.usuario.id_usuario) {
+    return res.status(400).json({ mensaje: 'No puedes eliminar tu propio usuario' });
+  }
+  const forzar = req.query.forzar === 'true';
+  const conexion = await pool.getConnection();
+  try {
+    await conexion.beginTransaction();
+    let eliminados;
+    if (forzar) {
+      eliminados = await borrarUsuarioEnCascada(conexion, req.params.id);
+    } else {
+      const [r] = await conexion.query('DELETE FROM usuarios WHERE id_usuario = ?', [req.params.id]);
+      eliminados = r.affectedRows;
+    }
+    if (eliminados === 0) {
+      await conexion.rollback();
+      return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+    }
+    await conexion.commit();
+    res.json({ mensaje: 'Usuario eliminado correctamente' });
+  } catch (error) {
+    await conexion.rollback().catch(() => {});
+    if (error.code === 'ER_ROW_IS_REFERENCED_2') {
+      return res.status(409).json({
+        mensaje: 'El usuario tiene rutas, incidencias o registros asociados.',
+        requiereForzar: true,
+      });
+    }
+    console.error('Error al eliminar usuario:', error);
+    res.status(500).json({ mensaje: 'Error interno del servidor' });
+  } finally {
+    conexion.release();
+  }
+}
+
 // El usuario solo puede cambiar SU PROPIA foto (toma el id del token, nunca de la URL/body).
 async function actualizarMiFotoPerfil(req, res) {
   if (!req.file) {
@@ -172,4 +211,5 @@ module.exports = {
   actualizarUsuario,
   cambiarEstadoUsuario,
   restablecerContrasena,
+  eliminarUsuario,
 };

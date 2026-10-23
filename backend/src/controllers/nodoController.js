@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const { descartarArchivo } = require('../middlewares/upload');
+const { borrarNodosEnCascada, borrarFotos } = require('./adminController');
 
 const TIPOS = ['poste', 'nodo_central', 'caja_distribucion'];
 const ESTADOS = ['activo', 'inactivo', 'mantenimiento'];
@@ -136,6 +137,29 @@ async function actualizarNodo(req, res) {
 }
 
 async function eliminarNodo(req, res) {
+  const forzar = req.query.forzar === 'true';
+
+  if (forzar) {
+    const conexion = await pool.getConnection();
+    try {
+      await conexion.beginTransaction();
+      const { eliminados, fotos } = await borrarNodosEnCascada(conexion, [Number(req.params.id)]);
+      if (eliminados === 0) {
+        await conexion.rollback();
+        return res.status(404).json({ mensaje: 'Nodo no encontrado' });
+      }
+      await conexion.commit();
+      borrarFotos(fotos);
+      return res.json({ mensaje: 'Nodo eliminado junto con sus rutas, incidencias y cables asociados' });
+    } catch (error) {
+      await conexion.rollback().catch(() => {});
+      console.error('Error al eliminar nodo en cascada:', error);
+      return res.status(500).json({ mensaje: 'Error interno del servidor' });
+    } finally {
+      conexion.release();
+    }
+  }
+
   try {
     const [resultado] = await pool.query('DELETE FROM nodos WHERE id_nodo = ?', [req.params.id]);
     if (resultado.affectedRows === 0) {
@@ -144,9 +168,10 @@ async function eliminarNodo(req, res) {
     res.json({ mensaje: 'Nodo eliminado correctamente' });
   } catch (error) {
     if (error.code === 'ER_ROW_IS_REFERENCED_2') {
-      return res
-        .status(409)
-        .json({ mensaje: 'No se puede eliminar: el nodo tiene rutas, incidencias o cables asociados. Márcalo como inactivo.' });
+      return res.status(409).json({
+        mensaje: 'El punto tiene rutas, incidencias o cables asociados.',
+        requiereForzar: true,
+      });
     }
     console.error('Error al eliminar nodo:', error);
     res.status(500).json({ mensaje: 'Error interno del servidor' });

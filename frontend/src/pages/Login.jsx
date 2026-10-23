@@ -61,7 +61,7 @@ export default function Login() {
               justifyContent: 'center',
             }}
           >
-            <IconMap size={16} color="#0f1b2e" />
+            <IconMap size={16} color="#ffffff" />
           </span>
           <span style={{ color: '#fff', fontWeight: 700, fontSize: 15.5, letterSpacing: '0.01em' }}>
             RED-TRACK

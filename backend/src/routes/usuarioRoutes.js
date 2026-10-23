@@ -9,6 +9,7 @@ const {
   actualizarUsuario,
   cambiarEstadoUsuario,
   restablecerContrasena,
+  eliminarUsuario,
 } = require('../controllers/usuarioController');
 
 router.use(verificarToken);
@@ -21,5 +22,6 @@ router.post('/', verificarAdmin, crearUsuario);
 router.put('/:id', verificarAdmin, actualizarUsuario);
 router.put('/:id/estado', verificarAdmin, cambiarEstadoUsuario);
 router.put('/:id/contrasena', verificarAdmin, restablecerContrasena);
+router.delete('/:id', verificarAdmin, eliminarUsuario);
 
 module.exports = router;

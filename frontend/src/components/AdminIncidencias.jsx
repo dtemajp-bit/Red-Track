@@ -24,6 +24,7 @@ export default function AdminIncidencias() {
   const [incidencias, setIncidencias] = useState([]);
   const [nodos, setNodos] = useState([]);
   const [editando, setEditando] = useState(null);
+  const [seleccion, setSeleccion] = useState([]);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
   const [mensaje, setMensaje] = useState('');
@@ -78,8 +79,35 @@ export default function AdminIncidencias() {
     }
   }
 
+  function alternar(id) {
+    setSeleccion((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  async function eliminarSeleccionadas() {
+    if (!window.confirm(`¿Eliminar ${seleccion.length} incidencia(s)? Esta acción no se puede deshacer.`)) return;
+    setError('');
+    setMensaje('');
+    let fallidas = 0;
+    for (const id of seleccion) {
+      try {
+        await cliente.delete(`/incidencias/${id}`);
+      } catch {
+        fallidas += 1;
+      }
+    }
+    setMensaje(`${seleccion.length - fallidas} incidencia(s) eliminada(s)`);
+    if (fallidas) setError(`${fallidas} no se pudieron eliminar`);
+    setSeleccion([]);
+    await cargar();
+  }
+
   return (
     <div>
+      {seleccion.length > 0 && (
+        <button onClick={eliminarSeleccionadas} style={{ ...estiloBotonPeligro, marginBottom: 12 }}>
+          Eliminar seleccionadas ({seleccion.length})
+        </button>
+      )}
       {error && !editando && <p style={{ fontSize: 12.5, color: 'var(--red)', marginBottom: 10 }}>{error}</p>}
       {mensaje && <p style={{ fontSize: 12.5, color: 'var(--green)', marginBottom: 10 }}>{mensaje}</p>}
 
@@ -87,6 +115,14 @@ export default function AdminIncidencias() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
+              <th style={th}>
+                <input
+                  type="checkbox"
+                  aria-label="Seleccionar todas"
+                  checked={incidencias.length > 0 && seleccion.length === incidencias.length}
+                  onChange={(e) => setSeleccion(e.target.checked ? incidencias.map((i) => i.id_incidencia) : [])}
+                />
+              </th>
               <th style={th}>Código</th>
               <th style={th}>Descripción</th>
               <th style={th}>Prioridad</th>
@@ -98,6 +134,9 @@ export default function AdminIncidencias() {
           <tbody>
             {incidencias.map((inc) => (
               <tr key={inc.id_incidencia}>
+                <td style={td}>
+                  <input type="checkbox" checked={seleccion.includes(inc.id_incidencia)} onChange={() => alternar(inc.id_incidencia)} />
+                </td>
                 <td style={{ ...td, fontWeight: 600, whiteSpace: 'nowrap' }}>INC-{String(inc.id_incidencia).padStart(4, '0')}</td>
                 <td style={{ ...td, maxWidth: 320 }}>{inc.descripcion}</td>
                 <td style={td}>
@@ -130,7 +169,7 @@ export default function AdminIncidencias() {
             ))}
             {incidencias.length === 0 && (
               <tr>
-                <td style={{ ...td, color: 'var(--text-muted)' }} colSpan={6}>
+                <td style={{ ...td, color: 'var(--text-muted)' }} colSpan={7}>
                   No hay incidencias registradas.
                 </td>
               </tr>

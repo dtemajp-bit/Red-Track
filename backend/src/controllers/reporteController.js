@@ -243,9 +243,9 @@ const desempenoPorTecnico = responder(consultarDesempeno);
 // ---------------------------------------------------------------------------
 const COLOR = {
   navy: 'FF0F1B2E',
-  celeste: 'FF22B8D9',
-  celesteClaro: 'FFE3F7FB',
-  zebra: 'FFF4F6F9',
+  celeste: 'FFC8102E',
+  celesteClaro: 'FFEEF0F3',
+  zebra: 'FFF6F7F9',
   borde: 'FFD5DAE3',
   texto: 'FF1C2333',
   gris: 'FF6B7385',
@@ -255,7 +255,8 @@ const COLOR = {
   naranjaTxt: 'FFB86F0A',
   rojo: 'FFFBE8E5',
   rojoTxt: 'FFD5432F',
-  celesteTxt: 'FF0E93B0',
+  celesteTxt: 'FF2F5D9E',
+  azulClaro: 'FFE8EEF8',
 };
 
 const BORDE = {
@@ -292,9 +293,9 @@ const TONO = {
   Resuelta: ['verde', 'verdeTxt'],
   Cerrada: ['verde', 'verdeTxt'],
   Baja: ['verde', 'verdeTxt'],
-  'En progreso': ['celesteClaro', 'celesteTxt'],
-  'En atención': ['celesteClaro', 'celesteTxt'],
-  Media: ['celesteClaro', 'celesteTxt'],
+  'En progreso': ['azulClaro', 'celesteTxt'],
+  'En atención': ['azulClaro', 'celesteTxt'],
+  Media: ['azulClaro', 'celesteTxt'],
   Pendiente: ['naranja', 'naranjaTxt'],
   Abierta: ['naranja', 'naranjaTxt'],
   'En mantenimiento': ['naranja', 'naranjaTxt'],
@@ -426,7 +427,7 @@ function agregarTabla(libro, nombreHoja, titulo, subtitulo, columnas, filas, opc
   return hoja;
 }
 
-function hojaResumen(libro, textoF, desempeno, infra, incs) {
+function hojaResumen(libro, textoF, desempeno, infra, incs, nombreTecnico) {
   const hoja = libro.addWorksheet('Resumen', {
     views: [{ showGridLines: false }],
     properties: { tabColor: { argb: COLOR.navy } },
@@ -436,7 +437,7 @@ function hojaResumen(libro, textoF, desempeno, infra, incs) {
 
   hoja.mergeCells('A1:E1');
   const t = hoja.getCell('A1');
-  t.value = 'RED-TRACK · Reporte gerencial';
+  t.value = nombreTecnico ? `RED-TRACK · Reporte de actividad · ${nombreTecnico}` : 'RED-TRACK · Reporte gerencial';
   t.font = { name: 'Calibri', size: 20, bold: true, color: { argb: 'FFFFFFFF' } };
   t.fill = relleno(COLOR.navy);
   t.alignment = { vertical: 'middle', indent: 1 };
@@ -542,7 +543,7 @@ async function exportarExcel(req, res) {
     libro.creator = 'Red-Track';
     libro.created = new Date();
 
-    hojaResumen(libro, textoF, desempeno, infra, incs);
+    hojaResumen(libro, textoF, desempeno, infra, incs, nombreTecnico);
 
     const hojaDes = agregarTabla(
       libro,
@@ -590,7 +591,7 @@ async function exportarExcel(req, res) {
               { type: 'num', value: 0 },
               { type: 'num', value: 1 },
             ],
-            color: { argb: 'FF7FD6E8' },
+            color: { argb: 'FFD98A96' },
           },
         ],
       });
