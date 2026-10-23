@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import cliente from '../api/cliente';
 import { eliminarConConfirmacion } from '../lib/borrar';
+import { avisar, confirmar } from '../lib/avisos';
 import Badge from '../ui/Badge';
 import Modal, { Etiqueta, estiloCampo, estiloBotonPrimario, estiloBotonSecundario, estiloBotonPeligro } from '../ui/Modal';
 
@@ -86,6 +87,7 @@ export default function AdminInfraestructura({ zonas }) {
       );
       if (hecho) {
         setMensaje('Punto eliminado');
+        avisar('Punto eliminado');
         await cargar();
       }
     } catch (err) {
@@ -98,12 +100,13 @@ export default function AdminInfraestructura({ zonas }) {
   }
 
   async function eliminarSeleccionados() {
-    if (
-      !window.confirm(
-        `¿Eliminar ${seleccion.length} punto(s)? Se borrarán también sus incidencias, cables y paradas de ruta. Esta acción no se puede deshacer.`
-      )
-    )
-      return;
+    const quiere = await confirmar({
+      titulo: 'Eliminar puntos',
+      mensaje: `Se eliminarán ${seleccion.length} punto(s) junto con sus incidencias, cables y paradas de ruta. Esta acción no se puede deshacer.`,
+      textoConfirmar: 'Eliminar',
+      peligro: true,
+    });
+    if (!quiere) return;
     setError('');
     setMensaje('');
     let fallidos = 0;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import cliente from '../api/cliente';
+import { avisar, confirmar } from '../lib/avisos';
 import Badge from '../ui/Badge';
 import Modal, { Etiqueta, estiloCampo, estiloBotonPrimario, estiloBotonSecundario, estiloBotonPeligro } from '../ui/Modal';
 
@@ -67,12 +68,19 @@ export default function AdminIncidencias() {
 
   async function eliminar(inc) {
     const codigo = `INC-${String(inc.id_incidencia).padStart(4, '0')}`;
-    if (!window.confirm(`¿Eliminar la incidencia ${codigo}? Esta acción no se puede deshacer.`)) return;
+    const quiere = await confirmar({
+      titulo: 'Eliminar incidencia',
+      mensaje: `Se eliminará la incidencia ${codigo}. Esta acción no se puede deshacer.`,
+      textoConfirmar: 'Eliminar',
+      peligro: true,
+    });
+    if (!quiere) return;
     setError('');
     setMensaje('');
     try {
       await cliente.delete(`/incidencias/${inc.id_incidencia}`);
       setMensaje('Incidencia eliminada');
+      avisar('Incidencia eliminada');
       await cargar();
     } catch (err) {
       setError(err.response?.data?.mensaje || 'No se pudo eliminar la incidencia');
@@ -84,7 +92,13 @@ export default function AdminIncidencias() {
   }
 
   async function eliminarSeleccionadas() {
-    if (!window.confirm(`¿Eliminar ${seleccion.length} incidencia(s)? Esta acción no se puede deshacer.`)) return;
+    const quiere = await confirmar({
+      titulo: 'Eliminar incidencias',
+      mensaje: `Se eliminarán ${seleccion.length} incidencia(s). Esta acción no se puede deshacer.`,
+      textoConfirmar: 'Eliminar',
+      peligro: true,
+    });
+    if (!quiere) return;
     setError('');
     setMensaje('');
     let fallidas = 0;

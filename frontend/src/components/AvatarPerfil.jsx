@@ -12,6 +12,7 @@ export default function AvatarPerfil() {
   const { usuario, actualizarUsuario } = useAuth();
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState('');
+  const [fotoRota, setFotoRota] = useState(false);
   const inputRef = useRef(null);
 
   async function manejarArchivo(e) {
@@ -26,6 +27,7 @@ export default function AvatarPerfil() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       actualizarUsuario({ foto_perfil: data.foto_perfil });
+      setFotoRota(false);
     } catch (err) {
       setError(err.response?.data?.mensaje || 'No se pudo actualizar la foto');
     } finally {
@@ -59,10 +61,11 @@ export default function AvatarPerfil() {
           opacity: subiendo ? 0.6 : 1,
         }}
       >
-        {usuario?.foto_perfil ? (
+        {usuario?.foto_perfil && !fotoRota ? (
           <img
             src={`${ORIGEN_ARCHIVOS}${usuario.foto_perfil}`}
             alt="Foto de perfil"
+            onError={() => setFotoRota(true)}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : (
@@ -76,7 +79,7 @@ export default function AvatarPerfil() {
         onChange={manejarArchivo}
         style={{ display: 'none' }}
       />
-      <span style={{ fontSize: 13.7, fontWeight: 500, color: 'var(--text)' }}>
+      <span className="rt-nombre-usuario" style={{ fontSize: 13.7, fontWeight: 500, color: 'var(--text)' }}>
         {usuario?.nombre_completo}
       </span>
       {error ? (

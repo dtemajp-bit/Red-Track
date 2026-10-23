@@ -8,6 +8,7 @@ import Sincronizacion from './pages/Sincronizacion';
 import Incidencias from './pages/Incidencias';
 import Administracion from './pages/Administracion';
 import Reportes from './pages/Reportes';
+import Avisos from './ui/Avisos';
 
 function RutaPrivada({ children }) {
   const { usuario } = useAuth();
@@ -17,6 +18,7 @@ function RutaPrivada({ children }) {
 function App() {
   return (
     <AuthProvider>
+      <Avisos />
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />

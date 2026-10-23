@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AvatarPerfil from './AvatarPerfil';
@@ -10,6 +11,7 @@ import {
   IconUsers,
   IconReport,
   IconLogout,
+  IconMenu,
 } from '../ui/Icons';
 
 const NAV_ITEMS = [
@@ -26,6 +28,7 @@ export default function AppLayout({ eyebrow = 'PANEL', title, children }) {
   const { cerrarSesion, usuario } = useAuth();
   const itemsVisibles = NAV_ITEMS.filter((i) => !i.soloAdmin || usuario?.rol === 'administrador');
   const navigate = useNavigate();
+  const [menuAbierto, setMenuAbierto] = useState(false);
 
   function salir() {
     cerrarSesion();
@@ -34,7 +37,9 @@ export default function AppLayout({ eyebrow = 'PANEL', title, children }) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
+      <div className={`rt-fondo-menu ${menuAbierto ? 'abierto' : ''}`} onClick={() => setMenuAbierto(false)} />
       <aside
+        className={`rt-sidebar ${menuAbierto ? 'abierto' : ''}`}
         style={{
           width: 236,
           flexShrink: 0,
@@ -80,6 +85,7 @@ export default function AppLayout({ eyebrow = 'PANEL', title, children }) {
             <NavLink
               key={to}
               to={to}
+              onClick={() => setMenuAbierto(false)}
               style={({ isActive }) => ({
                 display: 'flex',
                 alignItems: 'center',
@@ -125,6 +131,7 @@ export default function AppLayout({ eyebrow = 'PANEL', title, children }) {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <header
+          className="rt-encabezado"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -134,16 +141,26 @@ export default function AppLayout({ eyebrow = 'PANEL', title, children }) {
             borderBottom: '1px solid var(--border)',
           }}
         >
-          <div>
-            <p style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-soft)', letterSpacing: '0.06em' }}>
-              {eyebrow}
-            </p>
-            <h1 style={{ fontSize: 20 }}>{title}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+            <button
+              type="button"
+              className="rt-menu-btn"
+              aria-label="Abrir menú"
+              onClick={() => setMenuAbierto(true)}
+            >
+              <IconMenu size={19} />
+            </button>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-soft)', letterSpacing: '0.06em' }}>
+                {eyebrow}
+              </p>
+              <h1 style={{ fontSize: 20, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</h1>
+            </div>
           </div>
           <AvatarPerfil />
         </header>
 
-        <main style={{ flex: 1, padding: 28 }}>{children}</main>
+        <main className="rt-contenido">{children}</main>
       </div>
     </div>
   );

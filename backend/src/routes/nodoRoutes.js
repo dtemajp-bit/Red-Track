@@ -15,7 +15,7 @@ router.use(verificarToken);
 router.get('/', listarNodos);
 router.get('/:id', obtenerNodo);
 router.post('/', upload.single('foto'), crearNodo);
-router.put('/:id', verificarAdmin, actualizarNodo);
+router.put('/:id', verificarAdmin, upload.single('foto'), actualizarNodo);
 router.delete('/:id', verificarAdmin, eliminarNodo);
 
 module.exports = router;

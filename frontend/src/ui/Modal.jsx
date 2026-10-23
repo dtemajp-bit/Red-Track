@@ -1,40 +1,30 @@
-// Ventana emergente sencilla para editar registros desde Administración.
+import { useEffect } from 'react';
+import { IconX } from './Icons';
+
+// Ventana emergente para detalle y edición. Se cierra con Escape o al tocar el fondo.
 export default function Modal({ titulo, onCerrar, children, ancho = 520 }) {
+  useEffect(() => {
+    function alTeclear(e) {
+      if (e.key === 'Escape') onCerrar();
+    }
+    window.addEventListener('keydown', alTeclear);
+    return () => window.removeEventListener('keydown', alTeclear);
+  }, [onCerrar]);
+
   return (
-    <div
-      onClick={onCerrar}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(15, 27, 46, 0.45)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-        zIndex: 50,
-      }}
-    >
+    <div className="rt-fondo-modal" onClick={onCerrar}>
       <div
+        className="rt-caja-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={titulo}
+        style={{ maxWidth: ancho }}
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '100%',
-          maxWidth: ancho,
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          background: '#fff',
-          borderRadius: 12,
-          padding: 22,
-          boxShadow: '0 12px 40px rgba(0,0,0,0.25)',
-        }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 10 }}>
           <h2 style={{ fontSize: 16.5 }}>{titulo}</h2>
-          <button
-            onClick={onCerrar}
-            aria-label="Cerrar"
-            style={{ border: 'none', background: 'transparent', fontSize: 20, color: 'var(--text-muted)' }}
-          >
-            ×
+          <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rt-btn-icono" style={{ border: 'none' }}>
+            <IconX size={17} />
           </button>
         </div>
         {children}
@@ -45,6 +35,8 @@ export default function Modal({ titulo, onCerrar, children, ancho = 520 }) {
 
 export const estiloCampo = {
   width: '100%',
+  background: '#fff',
+  color: 'var(--text)',
   padding: '9px 11px',
   borderRadius: 8,
   border: '1px solid var(--border)',

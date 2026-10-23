@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import cliente from '../api/cliente';
+import { avisar, confirmar } from '../lib/avisos';
 import Badge from '../ui/Badge';
 
 const th = { textAlign: 'left', padding: '9px 6px', fontSize: 12, color: 'var(--text-soft)', fontWeight: 600 };
@@ -71,13 +72,20 @@ export default function AdminRutas({ tecnicos, mostrarForm, onCerrarForm }) {
   }
 
   async function eliminar(ruta) {
-    if (!window.confirm(`¿Eliminar la ruta "${ruta.nombre}"? Se pierde su avance y esta acción no se puede deshacer.`)) return;
+    const quiere = await confirmar({
+      titulo: 'Eliminar ruta',
+      mensaje: `Se eliminará la ruta "${ruta.nombre}". Se pierde su avance y esta acción no se puede deshacer.`,
+      textoConfirmar: 'Eliminar',
+      peligro: true,
+    });
+    if (!quiere) return;
     setError('');
     setMensaje('');
     try {
       await cliente.delete(`/rutas/${ruta.id_ruta}`);
       if (editandoId === ruta.id_ruta) cancelar();
       setMensaje('Ruta eliminada');
+      avisar('Ruta eliminada');
       await cargar();
     } catch (err) {
       setError(err.response?.data?.mensaje || 'No se pudo eliminar la ruta');

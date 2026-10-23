@@ -101,7 +101,7 @@ async function crearNodo(req, res) {
   } catch (error) {
     descartarArchivo(req.file);
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ mensaje: 'Ya existe un nodo con ese codigo' });
+      return res.status(409).json({ mensaje: 'Ya existe un nodo con ese código' });
     }
     console.error('Error al crear nodo:', error);
     res.status(500).json({ mensaje: 'Error interno del servidor' });
@@ -109,27 +109,43 @@ async function crearNodo(req, res) {
 }
 
 async function actualizarNodo(req, res) {
-  const { codigo, tipo, latitud, longitud, estado, observaciones, id_zona } = req.body;
+  const { codigo, tipo, latitud, longitud, estado, observaciones, id_zona, quitar_foto } = req.body;
 
   const errorValidacion = validarNodo(req.body);
   if (errorValidacion) {
+    descartarArchivo(req.file);
     return res.status(400).json({ mensaje: errorValidacion });
   }
 
   try {
-    const [resultado] = await pool.query(
-      `UPDATE nodos SET codigo = ?, tipo = ?, latitud = ?, longitud = ?, estado = ?,
-              observaciones = ?, id_zona = ?
-       WHERE id_nodo = ?`,
-      [String(codigo).trim(), tipo, latitud, longitud, estado || 'activo', observaciones || null, id_zona || null, req.params.id]
-    );
-    if (resultado.affectedRows === 0) {
+    const [[actual]] = await pool.query('SELECT foto_url, estado, id_zona FROM nodos WHERE id_nodo = ?', [req.params.id]);
+    if (!actual) {
+      descartarArchivo(req.file);
       return res.status(404).json({ mensaje: 'Nodo no encontrado' });
     }
-    res.json({ mensaje: 'Nodo actualizado correctamente' });
+
+    // Foto: una nueva reemplaza a la anterior; "quitar_foto" la elimina; si no se envía nada se conserva.
+    let fotoUrl = actual.foto_url;
+    if (req.file) fotoUrl = `/uploads/${req.file.filename}`;
+    else if (quitar_foto === 'true' || quitar_foto === true) fotoUrl = null;
+
+    // Campos opcionales: si no vienen en la petición, se conserva el valor actual.
+    const zona = id_zona === undefined ? actual.id_zona : id_zona || null;
+    const estadoFinal = estado || actual.estado || 'activo';
+
+    await pool.query(
+      `UPDATE nodos SET codigo = ?, tipo = ?, latitud = ?, longitud = ?, estado = ?,
+              observaciones = ?, id_zona = ?, foto_url = ?
+       WHERE id_nodo = ?`,
+      [String(codigo).trim(), tipo, latitud, longitud, estadoFinal, observaciones || null, zona, fotoUrl, req.params.id]
+    );
+
+    if (actual.foto_url && actual.foto_url !== fotoUrl) borrarFotos([actual.foto_url]);
+    res.json({ mensaje: 'Nodo actualizado correctamente', foto_url: fotoUrl });
   } catch (error) {
+    descartarArchivo(req.file);
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ mensaje: 'Ya existe un nodo con ese codigo' });
+      return res.status(409).json({ mensaje: 'Ya existe un nodo con ese código' });
     }
     console.error('Error al actualizar nodo:', error);
     res.status(500).json({ mensaje: 'Error interno del servidor' });
@@ -161,10 +177,12 @@ async function eliminarNodo(req, res) {
   }
 
   try {
+    const [[previo]] = await pool.query('SELECT foto_url FROM nodos WHERE id_nodo = ?', [req.params.id]);
     const [resultado] = await pool.query('DELETE FROM nodos WHERE id_nodo = ?', [req.params.id]);
     if (resultado.affectedRows === 0) {
       return res.status(404).json({ mensaje: 'Nodo no encontrado' });
     }
+    if (previo) borrarFotos([previo.foto_url]);
     res.json({ mensaje: 'Nodo eliminado correctamente' });
   } catch (error) {
     if (error.code === 'ER_ROW_IS_REFERENCED_2') {
