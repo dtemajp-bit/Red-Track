@@ -84,3 +84,12 @@ administrador. No hay que importar ningún SQL ni ejecutar `migracion_fotos.sql`
 - No pude probar en un teléfono físico ni en tu cuenta de Railway: probé la API completa contra una base
   MySQL real (incluido modo estricto de MySQL 8) y verifiqué que web y móvil compilan.
 - Cambia la contraseña del administrador inicial después de crear tus usuarios reales.
+
+## Novedades de esta versión (v8)
+
+- **Reportes:** nuevo "Desempeño por técnico" (rutas, puntos visitados, % cumplimiento, infraestructura e incidencias, última actividad), con filtros de fechas, zona y técnico. **Exportar Excel** genera un libro de 7 hojas con formato (resumen, totales, filtros, colores por estado). Un técnico solo ve sus propios datos.
+- **Administración:** el administrador ahora puede **editar** usuarios (nombre, correo, rol, zona y restablecer contraseña), zonas, rutas, puntos de infraestructura e incidencias, y **eliminar** zonas, rutas, puntos e incidencias.
+- **Sincronización:** la web también guarda sin conexión (registro de infraestructura e incidencias) y envía solo al volver la señal; se agregó historial de actividad y, para el administrador, un resumen por técnico. Los reintentos ya no duplican registros.
+- **Base de datos:** al arrancar, el backend agrega solo las columnas nuevas (quién registró cada punto, fecha de captura, identificador anti-duplicado). Los puntos que ya existían quedan como "Sin registrar" en el reporte por técnico; los nuevos sí se asignan.
+
+**Para publicar:** sube los cambios a GitHub; Railway y Vercel redespliegan solos. En Railway no hay variables nuevas. Hay que instalar la nueva app móvil (v8) para que los técnicos usen el envío sin duplicados.
