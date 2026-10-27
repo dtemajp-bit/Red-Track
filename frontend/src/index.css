@@ -246,3 +246,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--celeste) !import
   .rt-sidebar nav { overflow-y: auto; min-height: 0; }
   .rt-sidebar > div:last-child { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important; flex-shrink: 0; }
 }
+
+/* ============ Mapa de cobertura: adaptable a celular ============ */
+.rt-mapa-grid { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 20px; align-items: start; }
+.rt-mapa-lienzo { aspect-ratio: 16 / 9; }
+@media (max-width: 900px) {
+  .rt-mapa-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .rt-mapa-filtros { order: 2; }
+  .rt-mapa-lienzo { aspect-ratio: auto; height: 62vh; height: 62dvh; min-height: 360px; }
+}
