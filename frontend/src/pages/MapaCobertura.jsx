@@ -167,8 +167,8 @@ export default function MapaCobertura() {
 
   return (
     <AppLayout title="Mapa de cobertura">
-      <div style={{ display: 'grid', gridTemplateColumns: '230px 1fr', gap: 20, alignItems: 'start' }}>
-        <Card title="Filtros">
+      <div className="rt-mapa-grid">
+        <Card title="Filtros" style={{ order: 0 }} className="rt-mapa-filtros">
           <div style={{ marginBottom: 18 }}>
             <label style={{ display: 'block', fontSize: 12.5, marginBottom: 6 }}>Zona</label>
             <select
@@ -210,9 +210,9 @@ export default function MapaCobertura() {
           {MAPBOX_TOKEN ? (
             <div
               ref={contenedorMapa}
+              className="rt-mapa-lienzo"
               style={{
                 width: '100%',
-                aspectRatio: '16 / 9',
                 borderRadius: 10,
                 border: '1px solid var(--border)',
                 marginBottom: 16,
@@ -297,10 +297,10 @@ function VistaRespaldo({ cargando, filtrados, onSeleccionar }) {
 
   return (
     <div
+      className="rt-mapa-lienzo"
       style={{
         position: 'relative',
         width: '100%',
-        aspectRatio: '16 / 9',
         background: '#f3f5f9',
         borderRadius: 10,
         border: '1px solid var(--border)',
