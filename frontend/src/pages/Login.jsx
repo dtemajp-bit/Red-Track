@@ -2,11 +2,19 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import cliente from '../api/cliente';
 import { useAuth } from '../context/AuthContext';
-import { IconMail, IconLock, IconMap } from '../ui/Icons';
+import { IconMail, IconLock, IconMap, IconPin, IconSync, IconAlert, IconWifiOff } from '../ui/Icons';
+
+const CARACTERISTICAS = [
+  { Icono: IconPin, titulo: 'Registro georreferenciado', texto: 'Postes, cajas y nodos con ubicación exacta.' },
+  { Icono: IconWifiOff, titulo: 'Modo sin conexión', texto: 'Trabaja en campo y sincroniza al volver.' },
+  { Icono: IconAlert, titulo: 'Incidencias en tiempo real', texto: 'Reporta y da seguimiento a cada falla.' },
+  { Icono: IconSync, titulo: 'Rutas y reportes', texto: 'Planifica jornadas y exporta resultados.' },
+];
 
 export default function Login() {
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
+  const [verClave, setVerClave] = useState(false);
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
   const { iniciarSesion } = useAuth();
@@ -29,139 +37,84 @@ export default function Login() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'var(--navy)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
-      }}
-    >
-      <div
-        style={{
-          width: 380,
-          maxWidth: '100%',
-          background: 'var(--navy-soft)',
-          border: '1px solid var(--navy-border)',
-          borderRadius: 14,
-          padding: 32,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 26 }}>
-          <span
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              background: 'var(--celeste)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <IconMap size={16} color="#ffffff" />
-          </span>
-          <span style={{ color: '#fff', fontWeight: 700, fontSize: 15.5, letterSpacing: '0.01em' }}>
-            RED-TRACK
-          </span>
+    <div className="rt-login">
+      <aside className="rt-login-marca">
+        <div className="rt-login-logo">
+          <span><IconMap size={20} color="#ffffff" /></span>
+          RED-TRACK
         </div>
+        <div className="rt-login-hero">
+          <h2>Gestión de infraestructura de red, desde el campo.</h2>
+          <p>Plataforma de soporte para técnicos: registra, supervisa y mantiene tu red en un solo lugar.</p>
+          <ul>
+            {CARACTERISTICAS.map(({ Icono, titulo, texto }) => (
+              <li key={titulo}>
+                <span className="rt-login-icono"><Icono size={18} /></span>
+                <div>
+                  <strong>{titulo}</strong>
+                  <small>{texto}</small>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <p className="rt-login-pie">Universidad Mariano Gálvez · Seminario de Ingeniería en Sistemas</p>
+      </aside>
 
-        <h1 style={{ color: '#fff', fontSize: 22, marginBottom: 4 }}>Iniciar sesión</h1>
-        <p style={{ color: '#9aa5ba', fontSize: 13.5, marginBottom: 24 }}>
-          Sistema de soporte a técnicos de campo
-        </p>
+      <main className="rt-login-panel">
+        <form className="rt-login-tarjeta" onSubmit={manejarEnvio}>
+          <div className="rt-login-logo rt-login-logo-movil">
+            <span><IconMap size={18} color="#ffffff" /></span>
+            RED-TRACK
+          </div>
+          <h1>Bienvenido</h1>
+          <p className="rt-login-sub">Inicia sesión para continuar</p>
 
-        <form onSubmit={manejarEnvio}>
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: 12.5, color: '#c2cadb', marginBottom: 6 }}>
-              Usuario o correo
-            </label>
-            <div style={{ position: 'relative' }}>
-              <IconMail
-                size={16}
-                color="#7c88a0"
-                style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}
-              />
-              <input
-                type="email"
-                value={correo}
-                onChange={(e) => setCorreo(e.target.value)}
-                placeholder="jgarcia@redtrack.com"
-                required
-                style={{
-                  width: '100%',
-                  padding: '10px 12px 10px 36px',
-                  borderRadius: 8,
-                  border: '1px solid var(--navy-border)',
-                  background: '#0f1b2e',
-                  color: '#fff',
-                  outline: 'none',
-                }}
-              />
-            </div>
+          <label htmlFor="correo">Usuario o correo</label>
+          <div className="rt-login-campo">
+            <IconMail size={16} />
+            <input
+              id="correo"
+              type="email"
+              value={correo}
+              onChange={(e) => setCorreo(e.target.value)}
+              placeholder="correo@ejemplo.com"
+              autoComplete="username"
+              required
+            />
           </div>
 
-          <div style={{ marginBottom: 8 }}>
-            <label style={{ display: 'block', fontSize: 12.5, color: '#c2cadb', marginBottom: 6 }}>
-              Contraseña
-            </label>
-            <div style={{ position: 'relative' }}>
-              <IconLock
-                size={16}
-                color="#7c88a0"
-                style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}
-              />
-              <input
-                type="password"
-                value={contrasena}
-                onChange={(e) => setContrasena(e.target.value)}
-                placeholder="••••••••"
-                required
-                style={{
-                  width: '100%',
-                  padding: '10px 12px 10px 36px',
-                  borderRadius: 8,
-                  border: '1px solid var(--navy-border)',
-                  background: '#0f1b2e',
-                  color: '#fff',
-                  outline: 'none',
-                }}
-              />
-            </div>
+          <label htmlFor="clave">Contraseña</label>
+          <div className="rt-login-campo">
+            <IconLock size={16} />
+            <input
+              id="clave"
+              type={verClave ? 'text' : 'password'}
+              value={contrasena}
+              onChange={(e) => setContrasena(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
+              required
+            />
+            <button type="button" className="rt-login-ver" onClick={() => setVerClave((v) => !v)}>
+              {verClave ? 'Ocultar' : 'Ver'}
+            </button>
           </div>
 
-          {error && (
-            <p style={{ color: '#f3a39a', fontSize: 13, margin: '10px 0 0' }}>{error}</p>
-          )}
+          {error && <p className="rt-login-error" role="alert">{error}</p>}
 
-          <button
-            type="submit"
-            disabled={cargando}
-            style={{
-              width: '100%',
-              marginTop: 20,
-              padding: '11px 0',
-              borderRadius: 8,
-              border: 'none',
-              background: cargando ? '#1b2d47' : '#fff',
-              color: cargando ? '#8b97ac' : 'var(--navy)',
-              fontWeight: 700,
-              fontSize: 14,
-            }}
-          >
+          <button type="submit" className="rt-login-enviar" disabled={cargando}>
             {cargando ? 'Ingresando…' : 'Ingresar'}
           </button>
 
-          <p style={{ textAlign: 'center', fontSize: 12.5, color: '#8b97ac', marginTop: 16 }}>
-            ¿Olvidaste tu contraseña?{' '}
-            <a href="#" style={{ color: 'var(--celeste)' }}>
-              Recupérala aquí
-            </a>
+          <p className="rt-login-ayuda">
+            ¿Olvidaste tu contraseña? <a href="#">Recupérala aquí</a>
           </p>
+          {cargando && (
+            <p className="rt-login-nota">La primera conexión puede tardar hasta un minuto mientras el servidor despierta.</p>
+          )}
         </form>
-      </div>
+      </main>
     </div>
   );
 }
