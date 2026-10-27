@@ -76,8 +76,8 @@ export default function MapaCobertura() {
         (n) =>
           (zona === 'todas' || n.id_zona === Number(zona)) &&
           tipos.has(n.tipo) &&
-          Number.isFinite(Number(n.latitud)) &&
-          Number.isFinite(Number(n.longitud))
+          Math.abs(Number(n.latitud)) <= 90 &&
+          Math.abs(Number(n.longitud)) <= 180
       ),
     [nodos, zona, tipos]
   );
