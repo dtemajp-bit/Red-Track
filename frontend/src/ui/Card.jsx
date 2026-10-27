@@ -1,6 +1,7 @@
-export default function Card({ title, subtitle, action, children, style }) {
+export default function Card({ title, subtitle, action, children, style, className }) {
   return (
     <section
+      className={className}
       style={{
         background: 'var(--card)',
         border: '1px solid var(--border)',
