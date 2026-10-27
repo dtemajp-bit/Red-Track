@@ -29,8 +29,18 @@ function configuracionConexion() {
   };
 }
 
+// TiDB Cloud (y otros MySQL en la nube) exigen conexión cifrada (TLS).
+// Se activa sola si el host es de tidbcloud, o con DB_SSL=true.
+function configuracionSSL(host) {
+  const activar = process.env.DB_SSL === 'true' || /tidbcloud\.com$/i.test(host || '');
+  return activar ? { ssl: { minVersion: 'TLSv1.2', rejectUnauthorized: true } } : {};
+}
+
+const conexion = configuracionConexion();
+
 const pool = mysql.createPool({
-  ...configuracionConexion(),
+  ...conexion,
+  ...configuracionSSL(conexion.host),
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
