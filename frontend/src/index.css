@@ -239,3 +239,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--celeste) !import
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: #c9ced8; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-thumb:hover { background: #aab1bf; background-clip: content-box; border: 2px solid transparent; }
+
+/* ============ Móvil: menú lateral completo (incluye "Cerrar sesión") ============ */
+@media (max-width: 900px) {
+  .rt-sidebar { height: 100vh; height: 100dvh; max-height: 100dvh; overflow: hidden; }
+  .rt-sidebar nav { overflow-y: auto; min-height: 0; }
+  .rt-sidebar > div:last-child { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important; flex-shrink: 0; }
+}
