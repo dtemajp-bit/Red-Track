@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
-const { borrarUsuarioEnCascada } = require('./adminController');
+const { borrarUsuarioEnCascada, borrarFotos } = require('./adminController');
 
 async function listarUsuarios(req, res) {
   try {
@@ -193,10 +193,12 @@ async function actualizarMiFotoPerfil(req, res) {
   const id_usuario = req.usuario.id_usuario;
 
   try {
+    const [[previo]] = await pool.query('SELECT foto_perfil FROM usuarios WHERE id_usuario = ?', [id_usuario]);
     await pool.query('UPDATE usuarios SET foto_perfil = ? WHERE id_usuario = ?', [
       foto_perfil,
       id_usuario,
     ]);
+    if (previo && previo.foto_perfil && previo.foto_perfil !== foto_perfil) borrarFotos([previo.foto_perfil]);
     res.json({ foto_perfil, mensaje: 'Foto de perfil actualizada correctamente' });
   } catch (error) {
     console.error('Error al actualizar foto de perfil:', error);

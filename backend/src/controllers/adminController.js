@@ -3,10 +3,14 @@ const path = require('path');
 const pool = require('../config/db');
 const { carpetaDestino } = require('../middlewares/upload');
 
-// Borra del disco las fotos de los puntos eliminados (después de confirmar la transacción).
+// Borra las fotos de los puntos eliminados (de la base de datos y, si aún existen, del disco).
+// Se llama después de confirmar la transacción.
 function borrarFotos(urls) {
-  urls.filter(Boolean).forEach((url) => {
-    fs.unlink(path.join(carpetaDestino, path.basename(url)), () => {});
+  const nombres = urls.filter(Boolean).map((url) => path.basename(url));
+  if (nombres.length === 0) return;
+  pool.query('DELETE FROM fotos WHERE nombre IN (?)', [nombres]).catch(() => {});
+  nombres.forEach((nombre) => {
+    fs.unlink(path.join(carpetaDestino, nombre), () => {});
   });
 }
 

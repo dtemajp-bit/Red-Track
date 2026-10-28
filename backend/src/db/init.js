@@ -51,6 +51,16 @@ async function inicializarBaseDeDatos() {
     await pool.query(sentencia);
   }
 
+  // Fotos de puntos y de perfil: se guardan aquí para que no se pierdan al desplegar.
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS fotos (
+       nombre VARCHAR(120) NOT NULL PRIMARY KEY,
+       tipo VARCHAR(60) NOT NULL,
+       datos LONGBLOB NOT NULL,
+       creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
+     )`
+  );
+
   await asegurarColumna('nodos', 'observaciones', 'TEXT NULL');
   await asegurarColumna('nodos', 'foto_url', 'VARCHAR(255) NULL');
   await asegurarColumna('usuarios', 'foto_perfil', 'VARCHAR(255) NULL');

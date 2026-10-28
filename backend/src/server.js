@@ -41,6 +41,19 @@ app.use(
   })
 );
 app.use(express.json());
+
+// Fotos guardadas en la base de datos; si no está ahí, se busca en el disco (fotos antiguas).
+app.get('/uploads/:nombre', async (req, res, next) => {
+  try {
+    const [filas] = await pool.query('SELECT tipo, datos FROM fotos WHERE nombre = ?', [req.params.nombre]);
+    if (filas.length === 0) return next();
+    res.set('Content-Type', filas[0].tipo);
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    return res.send(filas[0].datos);
+  } catch (error) {
+    return next(error);
+  }
+});
 app.use('/uploads', express.static(carpetaDestino));
 
 app.get('/', (req, res) => {

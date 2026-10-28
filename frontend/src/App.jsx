@@ -15,6 +15,13 @@ function RutaPrivada({ children }) {
   return usuario ? children : <Navigate to="/login" replace />;
 }
 
+// Solo el administrador entra a Administración; el técnico vuelve al panel.
+function RutaAdmin({ children }) {
+  const { usuario } = useAuth();
+  if (!usuario) return <Navigate to="/login" replace />;
+  return usuario.rol === 'administrador' ? children : <Navigate to="/panel" replace />;
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -27,7 +34,7 @@ function App() {
           <Route path="/cobertura" element={<RutaPrivada><MapaCobertura /></RutaPrivada>} />
           <Route path="/sincronizacion" element={<RutaPrivada><Sincronizacion /></RutaPrivada>} />
           <Route path="/incidencias" element={<RutaPrivada><Incidencias /></RutaPrivada>} />
-          <Route path="/administracion" element={<RutaPrivada><Administracion /></RutaPrivada>} />
+          <Route path="/administracion" element={<RutaAdmin><Administracion /></RutaAdmin>} />
           <Route path="/reportes" element={<RutaPrivada><Reportes /></RutaPrivada>} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
