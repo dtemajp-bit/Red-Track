@@ -12,6 +12,7 @@ import {
   IconReport,
   IconLogout,
   IconMenu,
+  IconTarget,
 } from '../ui/Icons';
 
 const NAV_ITEMS = [
@@ -20,13 +21,18 @@ const NAV_ITEMS = [
   { to: '/cobertura', label: 'Mapa de cobertura', icon: IconMap },
   { to: '/sincronizacion', label: 'Sincronización', icon: IconSync },
   { to: '/incidencias', label: 'Incidencias', icon: IconAlert },
+  { to: '/gestion', label: 'Gestionar actividades', icon: IconTarget, soloAdmin: true },
   { to: '/administracion', label: 'Administración', icon: IconUsers, soloAdmin: true },
   { to: '/reportes', label: 'Reportes', icon: IconReport },
 ];
 
 export default function AppLayout({ eyebrow = 'PANEL', title, children }) {
   const { cerrarSesion, usuario } = useAuth();
-  const itemsVisibles = NAV_ITEMS.filter((i) => !i.soloAdmin || usuario?.rol === 'administrador');
+  const itemsVisibles = NAV_ITEMS.filter(
+    (i) =>
+      (!i.soloAdmin || usuario?.rol === 'administrador') &&
+      (!i.soloGestor || ['administrador', 'supervisor'].includes(usuario?.rol))
+  );
   const navigate = useNavigate();
   const [menuAbierto, setMenuAbierto] = useState(false);
 

@@ -28,4 +28,12 @@ function verificarAdmin(req, res, next) {
   next();
 }
 
-module.exports = { verificarToken, verificarAdmin };
+// Administrador o supervisor (los que gestionan actividades, catálogos e inventario).
+function verificarGestor(req, res, next) {
+  if (!req.usuario || !['administrador', 'supervisor'].includes(req.usuario.rol)) {
+    return res.status(403).json({ mensaje: 'Acceso restringido a administradores y supervisores' });
+  }
+  next();
+}
+
+module.exports = { verificarToken, verificarAdmin, verificarGestor };

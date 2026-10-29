@@ -57,13 +57,19 @@ async function borrarUsuarioEnCascada(conexion, id) {
   await conexion.query('DELETE rn FROM ruta_nodos rn JOIN rutas r ON rn.id_ruta = r.id_ruta WHERE r.id_tecnico = ?', [id]);
   await conexion.query('DELETE FROM rutas WHERE id_tecnico = ?', [id]);
   await conexion.query('DELETE FROM registros_pendientes_sync WHERE id_usuario = ?', [id]);
+  await conexion.query('DELETE am FROM actividad_materiales am JOIN actividades a ON am.id_actividad = a.id_actividad WHERE a.id_tecnico = ?', [id]);
+  await conexion.query('DELETE mo FROM actividad_mano_obra mo JOIN actividades a ON mo.id_actividad = a.id_actividad WHERE a.id_tecnico = ?', [id]);
+  await conexion.query('DELETE FROM actividades WHERE id_tecnico = ?', [id]);
+  await conexion.query('DELETE FROM inventario_tecnico WHERE id_tecnico = ?', [id]);
+  await conexion.query('DELETE FROM series_material WHERE id_tecnico = ?', [id]);
+  await conexion.query('UPDATE actividades SET id_creador = NULL WHERE id_creador = ?', [id]);
   await conexion.query('UPDATE nodos SET id_usuario_registra = NULL WHERE id_usuario_registra = ?', [id]);
   const [resultado] = await conexion.query('DELETE FROM usuarios WHERE id_usuario = ?', [id]);
   return resultado.affectedRows;
 }
 
 // Borra TODOS los datos operativos (para sacar los datos de prueba antes de usar
-// el sistema de verdad). Conserva usuarios, roles y zonas.
+// el sistema de verdad). Conserva usuarios, roles, zonas, catálogos de material y mano de obra, y las existencias de cada técnico.
 async function limpiarDatosOperativos(req, res) {
   if (req.body.confirmacion !== 'BORRAR') {
     return res.status(400).json({ mensaje: 'Escribe BORRAR para confirmar' });
@@ -73,7 +79,11 @@ async function limpiarDatosOperativos(req, res) {
     const [fotos] = await conexion.query('SELECT foto_url FROM nodos');
     await conexion.beginTransaction();
     const conteo = {};
+    await conexion.query('UPDATE series_material SET id_actividad = NULL'); // las series vuelven a estar disponibles
     for (const [clave, tabla] of [
+      ['material_de_actividades', 'actividad_materiales'],
+      ['mano_de_obra_de_actividades', 'actividad_mano_obra'],
+      ['actividades', 'actividades'],
       ['incidencias', 'incidencias'],
       ['paradas_de_ruta', 'ruta_nodos'],
       ['rutas', 'rutas'],

@@ -8,6 +8,8 @@ import Sincronizacion from './pages/Sincronizacion';
 import Incidencias from './pages/Incidencias';
 import Administracion from './pages/Administracion';
 import Reportes from './pages/Reportes';
+import ActividadDetalle from './pages/ActividadDetalle';
+import GestionActividades from './pages/GestionActividades';
 import Avisos from './ui/Avisos';
 
 function RutaPrivada({ children }) {
@@ -35,6 +37,8 @@ function App() {
           <Route path="/sincronizacion" element={<RutaPrivada><Sincronizacion /></RutaPrivada>} />
           <Route path="/incidencias" element={<RutaPrivada><Incidencias /></RutaPrivada>} />
           <Route path="/administracion" element={<RutaAdmin><Administracion /></RutaAdmin>} />
+          <Route path="/actividad/:id" element={<RutaPrivada><ActividadDetalle /></RutaPrivada>} />
+          <Route path="/gestion" element={<RutaAdmin><GestionActividades /></RutaAdmin>} />
           <Route path="/reportes" element={<RutaPrivada><Reportes /></RutaPrivada>} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

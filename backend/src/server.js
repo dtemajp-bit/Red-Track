@@ -15,6 +15,7 @@ const rutaRoutes = require('./routes/rutaRoutes');
 const sincronizacionRoutes = require('./routes/sincronizacionRoutes');
 const reporteRoutes = require('./routes/reporteRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const actividadRoutes = require('./routes/actividadRoutes');
 
 const app = express();
 
@@ -78,6 +79,7 @@ app.use('/api/rutas', rutaRoutes);
 app.use('/api/sincronizacion', sincronizacionRoutes);
 app.use('/api/reportes', reporteRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/actividades', actividadRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ mensaje: 'Ruta no encontrada' });

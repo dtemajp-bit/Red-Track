@@ -4,6 +4,7 @@ import Card from '../ui/Card';
 import Badge from '../ui/Badge';
 import cliente from '../api/cliente';
 import { IconPin } from '../ui/Icons';
+import ListaActividades from '../components/ListaActividades';
 
 function estadoPunto(visitado) {
   return visitado ? 'Completada' : 'Pendiente';
@@ -49,6 +50,8 @@ export default function PanelTecnico() {
   return (
     <AppLayout title="Panel del técnico">
       <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 20, alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+        <ListaActividades />
         <Card
           title={ruta ? `Ruta de hoy — ${ruta.nombre}` : 'Ruta de hoy'}
           subtitle={
@@ -90,6 +93,8 @@ export default function PanelTecnico() {
             </div>
           )}
         </Card>
+
+        </div>
 
         <Card title="Infraestructura por zona" subtitle="Nodos activos vs. total, en tiempo real">
           {cobertura === null ? (

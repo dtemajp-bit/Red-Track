@@ -61,6 +61,91 @@ async function inicializarBaseDeDatos() {
      )`
   );
 
+
+  // Actividades (órdenes de trabajo) del técnico, con su mano de obra e inventario usado.
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS actividades (
+       id_actividad INT AUTO_INCREMENT PRIMARY KEY,
+       orden_trabajo VARCHAR(60) NOT NULL,
+       tipo VARCHAR(60) NULL,
+       caja_terminal VARCHAR(60) NULL,
+       id_tecnico INT NOT NULL,
+       fecha_programada DATE NOT NULL,
+       ventana_inicio VARCHAR(5) NULL,
+       ventana_fin VARCHAR(5) NULL,
+       cliente VARCHAR(150) NULL,
+       telefono VARCHAR(30) NULL,
+       direccion VARCHAR(255) NULL,
+       descripcion TEXT NULL,
+       estado VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+       iniciado_en DATETIME NULL,
+       cerrado_en DATETIME NULL,
+       notas_cierre TEXT NULL,
+       id_creador INT NULL,
+       creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+       INDEX idx_actividades_tecnico (id_tecnico, fecha_programada)
+     )`
+  );
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS materiales (
+       id_material INT AUTO_INCREMENT PRIMARY KEY,
+       codigo VARCHAR(60) NOT NULL UNIQUE,
+       descripcion VARCHAR(255) NOT NULL,
+       unidad VARCHAR(20) NOT NULL DEFAULT 'UND',
+       activo TINYINT(1) NOT NULL DEFAULT 1,
+       con_serie TINYINT(1) NOT NULL DEFAULT 0
+     )`
+  );
+  await asegurarColumna('materiales', 'con_serie', 'TINYINT(1) NOT NULL DEFAULT 0');
+  // Material con número de serie (ONT, aparatos): cada unidad es una fila.
+  // id_tecnico = quién la tiene; id_actividad = actividad donde se instaló (NULL = disponible).
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS series_material (
+       id_serie INT AUTO_INCREMENT PRIMARY KEY,
+       id_material INT NOT NULL,
+       serie VARCHAR(80) NOT NULL,
+       id_tecnico INT NOT NULL,
+       id_actividad INT NULL,
+       UNIQUE KEY uq_material_serie (id_material, serie),
+       INDEX idx_series_tecnico (id_tecnico, id_actividad)
+     )`
+  );
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS inventario_tecnico (
+       id_tecnico INT NOT NULL,
+       id_material INT NOT NULL,
+       cantidad DECIMAL(12,2) NOT NULL DEFAULT 0,
+       PRIMARY KEY (id_tecnico, id_material)
+     )`
+  );
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS actividad_materiales (
+       id_linea INT AUTO_INCREMENT PRIMARY KEY,
+       id_actividad INT NOT NULL,
+       id_material INT NOT NULL,
+       cantidad DECIMAL(12,2) NOT NULL,
+       UNIQUE KEY uq_actividad_material (id_actividad, id_material)
+     )`
+  );
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS mano_obra_catalogo (
+       id_mano_obra INT AUTO_INCREMENT PRIMARY KEY,
+       codigo VARCHAR(60) NOT NULL UNIQUE,
+       descripcion VARCHAR(255) NOT NULL,
+       unidad VARCHAR(20) NOT NULL DEFAULT 'UND',
+       activo TINYINT(1) NOT NULL DEFAULT 1
+     )`
+  );
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS actividad_mano_obra (
+       id_linea INT AUTO_INCREMENT PRIMARY KEY,
+       id_actividad INT NOT NULL,
+       id_mano_obra INT NOT NULL,
+       cantidad DECIMAL(12,2) NOT NULL,
+       UNIQUE KEY uq_actividad_mano_obra (id_actividad, id_mano_obra)
+     )`
+  );
+
   await asegurarColumna('nodos', 'observaciones', 'TEXT NULL');
   await asegurarColumna('nodos', 'foto_url', 'VARCHAR(255) NULL');
   await asegurarColumna('usuarios', 'foto_perfil', 'VARCHAR(255) NULL');
