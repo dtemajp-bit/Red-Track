@@ -45,7 +45,14 @@ export function duracion(inicio, fin) {
   return h ? `${h} h ${min % 60} min` : `${min} min`;
 }
 
+// "14:05" -> "2:05 PM"
+export function hora12(valor) {
+  if (!valor) return '';
+  const [hh, mm] = String(valor).split(':').map(Number);
+  return `${hh % 12 === 0 ? 12 : hh % 12}:${String(mm).padStart(2, '0')} ${hh >= 12 ? 'PM' : 'AM'}`;
+}
+
 export const ventana = (a) =>
-  a.ventana_inicio && a.ventana_fin ? `${a.ventana_inicio} - ${a.ventana_fin}` : a.ventana_inicio || '—';
+  a.ventana_inicio && a.ventana_fin ? `${hora12(a.ventana_inicio)} - ${hora12(a.ventana_fin)}` : hora12(a.ventana_inicio) || '—';
 
 export const mensajeError = (err, porDefecto) => err?.response?.data?.mensaje || porDefecto;

@@ -14,7 +14,7 @@ async function login(req, res) {
   try {
     const [filas] = await pool.query(
       `SELECT u.id_usuario, u.nombre_completo, u.correo, u.contrasena_hash,
-              r.nombre AS rol, u.id_zona, u.activo, u.foto_perfil
+              r.nombre AS rol, u.id_zona, u.activo, u.estado_cuenta, u.foto_perfil
        FROM usuarios u
        JOIN roles r ON u.id_rol = r.id_rol
        WHERE u.correo = ?`,
@@ -28,7 +28,11 @@ async function login(req, res) {
     const usuario = filas[0];
 
     if (!usuario.activo) {
-      return res.status(403).json({ mensaje: 'Usuario inactivo, contacte al administrador' });
+      return res.status(403).json({
+        mensaje: usuario.estado_cuenta === 'suspendido'
+          ? 'Cuenta suspendida, contacte al administrador'
+          : 'Usuario inactivo, contacte al administrador',
+      });
     }
 
     const coincide = await bcrypt.compare(contrasena, usuario.contrasena_hash);

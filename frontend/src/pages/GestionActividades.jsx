@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import Card from '../ui/Card';
 import EstadoActividad from '../ui/EstadoActividad';
+import HoraAmPm from '../ui/HoraAmPm';
 import Modal, { Etiqueta, estiloBotonPrimario, estiloBotonSecundario, estiloCampo } from '../ui/Modal';
 import { IconEdit, IconPlus, IconTrash } from '../ui/Icons';
 import cliente from '../api/cliente';
@@ -62,8 +63,14 @@ function FormActividad({ inicial, tecnicos, onGuardado, onCerrar }) {
             </select>
           </div>
           {campo('fecha_programada', 'Fecha *', { type: 'date', required: true })}
-          {campo('ventana_inicio', 'Ventana desde', { type: 'time' })}
-          {campo('ventana_fin', 'Ventana hasta', { type: 'time' })}
+          <div style={{ flex: '1 1 200px' }}>
+            <Etiqueta>Ventana desde</Etiqueta>
+            <HoraAmPm etiqueta="Ventana desde" valor={f.ventana_inicio} onChange={(v) => setF({ ...f, ventana_inicio: v })} />
+          </div>
+          <div style={{ flex: '1 1 200px' }}>
+            <Etiqueta>Ventana hasta</Etiqueta>
+            <HoraAmPm etiqueta="Ventana hasta" valor={f.ventana_fin} onChange={(v) => setF({ ...f, ventana_fin: v })} />
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           {campo('cliente', 'Cliente', { maxLength: 150 })}
@@ -191,9 +198,41 @@ function FormCatalogo({ titulo, inicial, ruta, conSerie, onGuardado, onCerrar })
   );
 }
 
+// Importa una lista pegada: una línea por registro. Lo que ya existe se omite (no se duplica).
+function ModalImportar({ plural, ruta, conSerie, onListo, onCerrar }) {
+  const [texto, setTexto] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  async function enviar(e) {
+    e.preventDefault();
+    setEnviando(true);
+    try {
+      const { data } = await cliente.post(`${ruta}/importar`, { texto });
+      avisar(data.mensaje, 'exito');
+      onListo();
+    } catch (err) { avisar(mensajeError(err, 'No se pudo importar la lista'), 'error'); } finally { setEnviando(false); }
+  }
+  return (
+    <Modal titulo={`Importar lista de ${plural}`} onCerrar={onCerrar} ancho={560}>
+      <form onSubmit={enviar}>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 10 }}>
+          Pega una línea por registro. Puedes escribir solo la descripción, o <strong>código | descripción | unidad{conSerie ? ' | S' : ''}</strong>.
+          {conSerie && ' La S al final marca que lleva número de serie.'} Lo que ya existe se omite, así que no se duplica.
+        </p>
+        <textarea rows={8} required autoFocus value={texto} onChange={(e) => setTexto(e.target.value)} style={{ ...estiloCampo, resize: 'vertical', fontFamily: 'monospace' }}
+          placeholder={conSerie ? 'CONECTOR RJ45\nONT-01 | ONT GPON HUAWEI | UND | S' : 'Instalación triple\nTraslado externo'} />
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
+          <button type="button" onClick={onCerrar} style={estiloBotonSecundario}>Cancelar</button>
+          <button type="submit" disabled={enviando || !texto.trim()} style={estiloBotonPrimario}>Importar</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function TabCatalogo({ titulo, plural, ruta, id, extra, conSerie }) {
   const [filas, setFilas] = useState(undefined);
   const [form, setForm] = useState(null);
+  const [importando, setImportando] = useState(false);
   const cargar = useCallback(async () => {
     try {
       const { data } = await cliente.get(ruta, { params: { todos: 1 } });
@@ -201,6 +240,14 @@ function TabCatalogo({ titulo, plural, ruta, id, extra, conSerie }) {
     } catch { setFilas([]); avisar('No se pudo cargar el catálogo', 'error'); }
   }, [ruta]);
   useEffect(() => { cargar(); }, [cargar]);
+
+  async function cargarSugeridos() {
+    try {
+      const { data } = await cliente.post(`${ruta}/importar`, { sugeridos: true });
+      avisar(data.mensaje, 'exito');
+      cargar();
+    } catch (err) { avisar(mensajeError(err, 'No se pudo cargar el catálogo sugerido'), 'error'); }
+  }
 
   async function eliminar(fila) {
     const si = await confirmar({ titulo: 'Eliminar', mensaje: `¿Eliminar "${fila.descripcion}" del catálogo?`, textoConfirmar: 'Eliminar', peligro: true });
@@ -216,7 +263,13 @@ function TabCatalogo({ titulo, plural, ruta, id, extra, conSerie }) {
     <>
       <Card
         title={`Catálogo de ${plural}`} subtitle="Los técnicos eligen de esta lista"
-        action={<button type="button" onClick={() => setForm({})} style={{ ...estiloBotonPrimario, display: 'inline-flex', gap: 6, alignItems: 'center' }}><IconPlus size={15} /> Nuevo</button>}
+        action={
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <button type="button" onClick={cargarSugeridos} style={estiloBotonSecundario}>Cargar sugeridos</button>
+            <button type="button" onClick={() => setImportando(true)} style={estiloBotonSecundario}>Importar lista</button>
+            <button type="button" onClick={() => setForm({})} style={{ ...estiloBotonPrimario, display: 'inline-flex', gap: 6, alignItems: 'center' }}><IconPlus size={15} /> Nuevo</button>
+          </div>
+        }
       >
         {filas === undefined ? <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cargando…</p> : filas.length === 0 ? (
           <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Aún no hay registros. Agrega el primero con "Nuevo".</p>
@@ -237,6 +290,7 @@ function TabCatalogo({ titulo, plural, ruta, id, extra, conSerie }) {
             </tbody>
           </Tabla>
         )}
+        {importando && <ModalImportar plural={plural} ruta={ruta} conSerie={conSerie} onCerrar={() => setImportando(false)} onListo={() => { setImportando(false); cargar(); }} />}
         {form && <FormCatalogo titulo={titulo} inicial={form.id ? form : null} ruta={ruta} conSerie={conSerie} onCerrar={() => setForm(null)} onGuardado={() => { setForm(null); cargar(); }} />}
       </Card>
       {extra && extra(filas)}

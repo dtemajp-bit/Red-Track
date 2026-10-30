@@ -5,6 +5,7 @@
 //  3) Siembra roles y zonas iniciales si no existen.
 //  4) Crea el primer administrador si defines ADMIN_EMAIL y ADMIN_PASSWORD.
 const fs = require('fs');
+const { cargarCatalogosIniciales } = require('./catalogoInicial');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
@@ -145,6 +146,16 @@ async function inicializarBaseDeDatos() {
        UNIQUE KEY uq_actividad_mano_obra (id_actividad, id_mano_obra)
      )`
   );
+
+  // Estado de la cuenta: activo, suspendido o inactivo (ya no está). "activo" sigue indicando si puede entrar.
+  await asegurarColumna('usuarios', 'estado_cuenta', "VARCHAR(20) NOT NULL DEFAULT 'activo'");
+  await pool.query("UPDATE usuarios SET estado_cuenta = 'inactivo' WHERE activo = 0 AND estado_cuenta = 'activo'");
+
+  try {
+    await cargarCatalogosIniciales(pool);
+  } catch (error) {
+    console.error('No se pudieron cargar los catálogos iniciales:', error.message);
+  }
 
   await asegurarColumna('nodos', 'observaciones', 'TEXT NULL');
   await asegurarColumna('nodos', 'foto_url', 'VARCHAR(255) NULL');

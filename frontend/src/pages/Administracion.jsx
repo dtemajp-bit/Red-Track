@@ -22,6 +22,13 @@ const campo = {
 
 const FORM_VACIO = { nombre_completo: '', correo: '', contrasena: '', id_rol: '', id_zona: '' };
 
+// Activo: puede entrar. Suspendido: bloqueado por ahora. Inactivo: ya no trabaja en la empresa.
+const ESTADOS_USUARIO = {
+  activo: { fondo: '#e3f7ec', color: '#0f7a42' },
+  suspendido: { fondo: '#fdf1dd', color: '#a8680c' },
+  inactivo: { fondo: '#fdeaea', color: '#b3261e' },
+};
+
 export default function Administracion() {
   const [tab, setTab] = useState('usuarios');
   const [usuarios, setUsuarios] = useState([]);
@@ -96,14 +103,14 @@ export default function Administracion() {
     }
   }
 
-  async function alternarEstado(usuario) {
+  async function cambiarEstadoUsuario(usuario, estado) {
     try {
-      await cliente.put(`/usuarios/${usuario.id_usuario}/estado`, { activo: !usuario.activo });
+      await cliente.put(`/usuarios/${usuario.id_usuario}/estado`, { estado });
       setUsuarios((prev) =>
-        prev.map((u) => (u.id_usuario === usuario.id_usuario ? { ...u, activo: !u.activo } : u))
+        prev.map((u) => (u.id_usuario === usuario.id_usuario ? { ...u, estado_cuenta: estado, activo: estado === 'activo' } : u))
       );
-    } catch {
-      setError('No se pudo cambiar el estado del usuario');
+    } catch (err) {
+      setError(err.response?.data?.mensaje || 'No se pudo cambiar el estado del usuario');
     }
   }
 
@@ -419,13 +426,22 @@ export default function Administracion() {
                   <td style={{ ...td, textTransform: 'capitalize' }}>{u.rol}</td>
                   <td style={td}>{u.zona || '—'}</td>
                   <td style={td}>
-                    <button
-                      onClick={() => alternarEstado(u)}
-                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}
-                      title="Clic para cambiar estado"
-                    >
-                      <Badge>{u.activo ? 'Activo' : 'Inactivo'}</Badge>
-                    </button>
+                    {(() => {
+                      const estado = u.estado_cuenta || (u.activo ? 'activo' : 'inactivo');
+                      const e = ESTADOS_USUARIO[estado];
+                      return (
+                        <select
+                          value={estado}
+                          onChange={(ev) => cambiarEstadoUsuario(u, ev.target.value)}
+                          aria-label={`Estado de ${u.nombre_completo}`}
+                          style={{ border: 'none', borderRadius: 999, padding: '4px 10px', fontSize: 12.5, fontWeight: 600, background: e.fondo, color: e.color, cursor: 'pointer' }}
+                        >
+                          <option value="activo">Activo</option>
+                          <option value="suspendido">Suspendido</option>
+                          <option value="inactivo">Inactivo</option>
+                        </select>
+                      );
+                    })()}
                   </td>
                   <td style={td}>
                     <button

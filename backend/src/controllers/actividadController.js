@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { MANO_OBRA, MATERIALES, fusionarCatalogo, leerLineas } = require('../db/catalogoInicial');
 
 // Estados de una actividad: pendiente -> en_ruta (al iniciar la orden) -> cerrado.
 const esGestor = (rol) => ['administrador', 'supervisor'].includes(rol);
@@ -335,6 +336,18 @@ function catalogo(tabla, id, usoTabla, conSerie = false) {
 const mat = catalogo('materiales', 'id_material', 'actividad_materiales', true);
 const mo = catalogo('mano_obra_catalogo', 'id_mano_obra', 'actividad_mano_obra');
 
+// Importa una lista pegada (o el catálogo sugerido) sin duplicar lo que ya existe.
+const importarCatalogo = (tabla, sugeridos) => async (req, res) => {
+  try {
+    const items = req.body.sugeridos ? sugeridos : leerLineas(req.body.texto);
+    if (items.length === 0) return res.status(400).json({ mensaje: 'Escribe al menos una línea para importar' });
+    const r = await fusionarCatalogo(pool, tabla, items);
+    res.status(201).json({ ...r, mensaje: `${r.agregados} agregado(s)` + (r.existian ? `; ${r.existian} ya existían y se omitieron` : '') });
+  } catch (e) { error500(res, `Error al importar en ${tabla}:`, e); }
+};
+const importarMateriales = importarCatalogo('materiales', MATERIALES);
+const importarManoObra = importarCatalogo('mano_obra_catalogo', MANO_OBRA);
+
 // ---------------------------------------------------------------- existencias del técnico
 async function verInventarioTecnico(req, res) {
   const idTecnico = Number(req.params.idTecnico);
@@ -553,6 +566,6 @@ module.exports = {
   iniciarActividad, cerrarActividad, reabrirActividad, listarTecnicos,
   listarMateriales: mat.listar, crearMaterial: mat.crear, actualizarMaterial: mat.actualizar, eliminarMaterial: mat.eliminar,
   listarManoObra: mo.listar, crearManoObra: mo.crear, actualizarManoObra: mo.actualizar, eliminarManoObra: mo.eliminar,
-  verInventarioTecnico, fijarInventarioTecnico, agregarSeriesTecnico, eliminarSerie, usarSeries, quitarSerie,
+  importarMateriales, importarManoObra, verInventarioTecnico, fijarInventarioTecnico, agregarSeriesTecnico, eliminarSerie, usarSeries, quitarSerie,
   agregarManoObra, cambiarManoObra, quitarManoObra, agregarMaterial, cambiarMaterial, quitarMaterial,
 };

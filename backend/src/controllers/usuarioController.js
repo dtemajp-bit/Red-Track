@@ -5,7 +5,7 @@ const { borrarUsuarioEnCascada, borrarFotos } = require('./adminController');
 async function listarUsuarios(req, res) {
   try {
     const [usuarios] = await pool.query(
-      `SELECT u.id_usuario, u.nombre_completo, u.correo, u.activo, u.foto_perfil,
+      `SELECT u.id_usuario, u.nombre_completo, u.correo, u.activo, u.estado_cuenta, u.foto_perfil,
               r.id_rol, r.nombre AS rol,
               z.id_zona, z.nombre AS zona
        FROM usuarios u
@@ -120,25 +120,31 @@ async function restablecerContrasena(req, res) {
   }
 }
 
-// Activa/desactiva un usuario en vez de borrarlo, ya que hay tablas
-// (nodos, incidencias, rutas) que referencian id_usuario.
+// Cambia el estado de la cuenta (activo, suspendido o inactivo) en vez de borrar al usuario,
+// ya que hay tablas (nodos, incidencias, rutas) que referencian id_usuario.
+// Solo la cuenta "activo" puede iniciar sesión.
+const ESTADOS_CUENTA = ['activo', 'suspendido', 'inactivo'];
+const MENSAJES_ESTADO = { activo: 'Usuario activado', suspendido: 'Usuario suspendido', inactivo: 'Usuario marcado como inactivo' };
+
 async function cambiarEstadoUsuario(req, res) {
-  const { activo } = req.body;
-  if (typeof activo !== 'boolean') {
-    return res.status(400).json({ mensaje: 'El campo activo debe ser true o false' });
+  let { estado } = req.body;
+  if (estado === undefined && typeof req.body.activo === 'boolean') estado = req.body.activo ? 'activo' : 'inactivo';
+  if (!ESTADOS_CUENTA.includes(estado)) {
+    return res.status(400).json({ mensaje: 'El estado debe ser activo, suspendido o inactivo' });
   }
-  if (!activo && Number(req.params.id) === req.usuario.id_usuario) {
-    return res.status(400).json({ mensaje: 'No puedes desactivar tu propio usuario' });
+  if (estado !== 'activo' && Number(req.params.id) === req.usuario.id_usuario) {
+    return res.status(400).json({ mensaje: 'No puedes suspender ni desactivar tu propio usuario' });
   }
   try {
-    const [resultado] = await pool.query('UPDATE usuarios SET activo = ? WHERE id_usuario = ?', [
-      activo,
+    const [resultado] = await pool.query('UPDATE usuarios SET activo = ?, estado_cuenta = ? WHERE id_usuario = ?', [
+      estado === 'activo' ? 1 : 0,
+      estado,
       req.params.id,
     ]);
     if (resultado.affectedRows === 0) {
       return res.status(404).json({ mensaje: 'Usuario no encontrado' });
     }
-    res.json({ mensaje: activo ? 'Usuario activado' : 'Usuario desactivado' });
+    res.json({ estado, mensaje: MENSAJES_ESTADO[estado] });
   } catch (error) {
     console.error('Error al cambiar estado del usuario:', error);
     res.status(500).json({ mensaje: 'Error interno del servidor' });

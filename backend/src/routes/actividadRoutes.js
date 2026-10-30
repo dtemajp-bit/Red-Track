@@ -8,6 +8,8 @@ router.use(verificarToken);
 // Catálogos, técnicos e inventario (antes de /:id para que no se confundan)
 // Administrador: crea y gestiona. Supervisor: solo supervisa (ver) y trabaja en lo que se le asigne.
 router.get('/tecnicos', verificarGestor, c.listarTecnicos);
+router.post('/catalogos/materiales/importar', verificarAdmin, c.importarMateriales);
+router.post('/catalogos/mano-obra/importar', verificarAdmin, c.importarManoObra);
 router.get('/catalogos/materiales', verificarAdmin, c.listarMateriales);
 router.post('/catalogos/materiales', verificarAdmin, c.crearMaterial);
 router.put('/catalogos/materiales/:id', verificarAdmin, c.actualizarMaterial);
