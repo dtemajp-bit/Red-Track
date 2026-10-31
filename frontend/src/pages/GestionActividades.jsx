@@ -8,7 +8,9 @@ import Modal, { Etiqueta, estiloBotonPrimario, estiloBotonSecundario, estiloCamp
 import { IconEdit, IconPlus, IconTrash } from '../ui/Icons';
 import cliente from '../api/cliente';
 import { avisar, confirmar } from '../lib/avisos';
-import { ESTADOS, hoyLocal, mensajeError, ventana } from '../lib/actividades';
+import { ESTADOS, esEntero, hoyLocal, mensajeError, ventana } from '../lib/actividades';
+
+const bloquearDecimales = (e) => ['.', ',', 'e', 'E', '-', '+'].includes(e.key) && e.preventDefault();
 
 const th = { textAlign: 'left', padding: '9px 6px', fontSize: 12, color: 'var(--text-soft)', fontWeight: 600, whiteSpace: 'nowrap' };
 const td = { padding: '10px 6px', fontSize: 13.5, borderTop: '1px solid var(--border)', verticalAlign: 'middle' };
@@ -302,6 +304,28 @@ function TabCatalogo({ titulo, plural, ruta, id, extra, conSerie }) {
 function PanelSeries({ fila, idTecnico, onCambio }) {
   const [texto, setTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [codigo, setCodigo] = useState('');
+  const [escaneadas, setEscaneadas] = useState([]);
+
+  // Escáner de mano: funciona como teclado, escribe la serie y presiona Enter solo.
+  function escanear(e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const c = codigo.trim();
+    setCodigo('');
+    if (!c) return;
+    if (escaneadas.includes(c) || fila.series.some((s) => s.serie === c)) return avisar(`La serie ${c} ya está registrada o escaneada`, 'info');
+    setEscaneadas([...escaneadas, c]);
+  }
+  async function guardarEscaneadas() {
+    setEnviando(true);
+    try {
+      const { data } = await cliente.post(`/actividades/inventario/${idTecnico}/series`, { id_material: fila.id_material, series: escaneadas });
+      avisar(data.mensaje, 'exito');
+      setEscaneadas([]);
+      onCambio();
+    } catch (err) { avisar(mensajeError(err, 'No se pudieron guardar las series escaneadas'), 'error'); } finally { setEnviando(false); }
+  }
   async function agregar() {
     setEnviando(true);
     try {
@@ -322,7 +346,26 @@ function PanelSeries({ fila, idTecnico, onCambio }) {
   }
   return (
     <div style={{ padding: '8px 4px 14px' }}>
-      <Etiqueta>Agregar series (una por línea)</Etiqueta>
+      <Etiqueta>Escáner de mano: haz clic aquí y escanea cada equipo</Etiqueta>
+      <input value={codigo} onChange={(e) => setCodigo(e.target.value)} onKeyDown={escanear} autoComplete="off"
+        placeholder="Escanea el código de barras de la serie" style={{ ...estiloCampo, fontFamily: 'monospace' }} aria-label="Escanear serie" />
+      {escaneadas.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {escaneadas.map((c) => (
+              <span key={c} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#eef1f5', borderRadius: 999, padding: '4px 10px', fontFamily: 'monospace', fontSize: 12.5 }}>
+                {c}
+                <button type="button" aria-label={`Quitar ${c}`} onClick={() => setEscaneadas(escaneadas.filter((x) => x !== c))} style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14 }}>×</button>
+              </span>
+            ))}
+          </div>
+          <button type="button" onClick={guardarEscaneadas} disabled={enviando} style={{ ...estiloBotonPrimario, marginTop: 8 }}>
+            Guardar {escaneadas.length} serie(s) escaneada(s)
+          </button>
+        </div>
+      )}
+      <div style={{ height: 14 }} />
+      <Etiqueta>O pega las series (una por línea)</Etiqueta>
       <textarea rows={3} value={texto} onChange={(e) => setTexto(e.target.value)} placeholder={'48575443CCDF08B9\n48575443CCE43DB9'} style={{ ...estiloCampo, resize: 'vertical', fontFamily: 'monospace' }} />
       <button type="button" onClick={agregar} disabled={enviando || !texto.trim()} style={{ ...estiloBotonPrimario, marginTop: 8 }}>Agregar series</button>
       {fila.series.length > 0 && (
@@ -358,6 +401,7 @@ function Existencias({ tecnicos, version }) {
   useEffect(() => { cargar(); }, [cargar, version]);
 
   async function guardar(f) {
+    if (!esEntero(valores[f.id_material])) return avisar('Las existencias deben ser un número entero (0, 1, 2…)', 'error');
     try {
       const { data } = await cliente.put(`/actividades/inventario/${idTecnico}`, { id_material: f.id_material, cantidad: Number(valores[f.id_material]) });
       avisar(data.mensaje, 'exito');
@@ -394,7 +438,7 @@ function Existencias({ tecnicos, version }) {
               <tr key={f.id_material}>
                 <td style={td}><strong>{f.descripcion}</strong><br /><span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{f.codigo} · {f.unidad}</span></td>
                 <td style={td}>
-                  <input type="number" min="0" step="0.01" value={valores[f.id_material] ?? ''} onChange={(e) => setValores({ ...valores, [f.id_material]: e.target.value })} style={{ ...estiloCampo, width: 110 }} aria-label={`Existencias de ${f.descripcion}`} />
+                  <input type="number" inputMode="numeric" min="0" step="1" value={valores[f.id_material] ?? ''} onKeyDown={bloquearDecimales} onChange={(e) => setValores({ ...valores, [f.id_material]: e.target.value })} style={{ ...estiloCampo, width: 110 }} aria-label={`Existencias de ${f.descripcion}`} />
                 </td>
                 <td style={{ ...td, textAlign: 'right' }}>
                   <button type="button" onClick={() => guardar(f)} disabled={String(f.cantidad) === valores[f.id_material]} style={{ ...estiloBotonPrimario, padding: '6px 12px' }}>Guardar</button>
@@ -408,6 +452,110 @@ function Existencias({ tecnicos, version }) {
   );
 }
 
+// Agrega la misma cantidad de un material a todos los técnicos de una vez.
+function AgregarATodos({ materiales, onListo }) {
+  const [id, setId] = useState('');
+  const [cantidad, setCantidad] = useState('1');
+  const [enviando, setEnviando] = useState(false);
+  const porCantidad = (materiales || []).filter((m) => m.activo && !m.con_serie);
+  async function enviar(e) {
+    e.preventDefault();
+    if (!esEntero(cantidad) || Number(cantidad) < 1) return avisar('La cantidad debe ser un número entero mayor a 0', 'error');
+    const si = await confirmar({ titulo: 'Agregar a todos los técnicos', mensaje: `Se sumarán ${cantidad} unidad(es) a las existencias de cada técnico activo. ¿Continuar?`, textoConfirmar: 'Agregar a todos' });
+    if (!si) return;
+    setEnviando(true);
+    try {
+      const { data } = await cliente.post('/actividades/inventario/todos', { id_material: Number(id), cantidad: Number(cantidad) });
+      avisar(data.mensaje, 'exito');
+      setId('');
+      setCantidad('1');
+      onListo();
+    } catch (err) { avisar(mensajeError(err, 'No se pudo agregar a todos los técnicos'), 'error'); } finally { setEnviando(false); }
+  }
+  return (
+    <Card title="Agregar a todos los técnicos" subtitle="Suma la misma cantidad de un material a las existencias de cada técnico (el material por serie se agrega con el escáner)">
+      <form onSubmit={enviar} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div style={{ flex: '1 1 260px' }}>
+          <Etiqueta>Material</Etiqueta>
+          <select required value={id} onChange={(e) => setId(e.target.value)} style={estiloCampo} aria-label="Material para todos">
+            <option value="">Elige un material…</option>
+            {porCantidad.map((m) => <option key={m.id_material} value={m.id_material}>{m.codigo} · {m.descripcion}</option>)}
+          </select>
+        </div>
+        <div style={{ width: 120 }}>
+          <Etiqueta>Cantidad</Etiqueta>
+          <input type="number" inputMode="numeric" min="1" step="1" required value={cantidad} onKeyDown={bloquearDecimales} onChange={(e) => setCantidad(e.target.value)} style={estiloCampo} aria-label="Cantidad para todos" />
+        </div>
+        <button type="submit" disabled={enviando || !id} style={estiloBotonPrimario}>Agregar a todos</button>
+      </form>
+    </Card>
+  );
+}
+
+// Puntos del check list con el que el supervisor califica al técnico.
+function FilaPunto({ punto, onCambio }) {
+  const [texto, setTexto] = useState(punto.descripcion);
+  const cambiado = texto.trim() !== punto.descripcion;
+  async function guardar(cambios) {
+    try {
+      const { data } = await cliente.put(`/supervision/items/${punto.id_item}`, { descripcion: texto, activo: !!punto.activo, ...cambios });
+      avisar(data.mensaje, 'exito');
+      onCambio();
+    } catch (err) { avisar(mensajeError(err, 'No se pudo guardar el punto'), 'error'); }
+  }
+  async function quitar() {
+    const si = await confirmar({ titulo: 'Eliminar punto', mensaje: 'Las calificaciones ya hechas no se alteran. ¿Eliminar este punto del check list?', textoConfirmar: 'Eliminar', peligro: true });
+    if (!si) return;
+    try {
+      const { data } = await cliente.delete(`/supervision/items/${punto.id_item}`);
+      avisar(data.mensaje, 'exito');
+      onCambio();
+    } catch (err) { avisar(mensajeError(err, 'No se pudo eliminar el punto'), 'error'); }
+  }
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: '8px 0', borderTop: '1px solid var(--border)' }}>
+      <input value={texto} onChange={(e) => setTexto(e.target.value)} maxLength={255} style={{ ...estiloCampo, flex: '1 1 300px' }} aria-label="Punto del check list" />
+      <label style={{ fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' }}>
+        <input type="checkbox" checked={!!punto.activo} onChange={(e) => guardar({ activo: e.target.checked })} /> Activo
+      </label>
+      <button type="button" disabled={!cambiado || !texto.trim()} onClick={() => guardar({})} style={{ ...estiloBotonPrimario, padding: '6px 12px' }}>Guardar</button>
+      <button type="button" className="rt-btn-icono" aria-label="Eliminar punto" onClick={quitar}><IconTrash size={15} /></button>
+    </div>
+  );
+}
+
+function TabChecklist() {
+  const [puntos, setPuntos] = useState(undefined);
+  const [nuevo, setNuevo] = useState('');
+  const cargar = useCallback(async () => {
+    try {
+      const { data } = await cliente.get('/supervision/items', { params: { todos: 1 } });
+      setPuntos(data);
+    } catch { setPuntos([]); avisar('No se pudo cargar el check list', 'error'); }
+  }, []);
+  useEffect(() => { cargar(); }, [cargar]);
+  async function agregar(e) {
+    e.preventDefault();
+    try {
+      const { data } = await cliente.post('/supervision/items', { descripcion: nuevo });
+      avisar(data.mensaje, 'exito');
+      setNuevo('');
+      cargar();
+    } catch (err) { avisar(mensajeError(err, 'No se pudo agregar el punto'), 'error'); }
+  }
+  return (
+    <Card title="Check list de supervisión" subtitle="Puntos con los que el supervisor califica el desempeño del técnico en cada orden">
+      <form onSubmit={agregar} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        <input required value={nuevo} onChange={(e) => setNuevo(e.target.value)} maxLength={255} placeholder="Nuevo punto a verificar" style={{ ...estiloCampo, flex: '1 1 300px' }} aria-label="Nuevo punto" />
+        <button type="submit" disabled={!nuevo.trim()} style={{ ...estiloBotonPrimario, display: 'inline-flex', gap: 6, alignItems: 'center' }}><IconPlus size={15} /> Agregar punto</button>
+      </form>
+      {puntos === undefined ? <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cargando…</p> : puntos.length === 0 ? (
+        <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>El check list está vacío. Agrega el primer punto.</p>
+      ) : puntos.map((p) => <FilaPunto key={`${p.id_item}-${p.descripcion}-${p.activo}`} punto={p} onCambio={cargar} />)}
+    </Card>
+  );
+}
+
 // ------------------------------------------------------------------ Página
 export default function GestionActividades() {
   const [pestana, setPestana] = useState('actividades');
@@ -417,7 +565,8 @@ export default function GestionActividades() {
     cliente.get('/actividades/tecnicos').then((r) => setTecnicos(r.data)).catch(() => avisar('No se pudo cargar la lista de técnicos', 'error'));
   }, []);
 
-  const pestanas = [['actividades', 'Actividades'], ['materiales', 'Materiales e inventario'], ['mano_obra', 'Mano de obra']];
+  const [version, setVersion] = useState(0);
+  const pestanas = [['actividades', 'Actividades'], ['materiales', 'Materiales e inventario'], ['mano_obra', 'Mano de obra'], ['checklist', 'Check list de supervisión']];
   return (
     <AppLayout title="Gestionar actividades">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -433,8 +582,14 @@ export default function GestionActividades() {
         {pestana === 'actividades' && <TabActividades tecnicos={tecnicos} />}
         {pestana === 'materiales' && (
           <TabCatalogo titulo="material" plural="materiales" ruta="/actividades/catalogos/materiales" id="id_material" conSerie
-            extra={(filas) => <Existencias tecnicos={tecnicos} version={filas ? filas.length : 0} />} />
+            extra={(filas) => (
+              <>
+                <AgregarATodos materiales={filas} onListo={() => setVersion((v) => v + 1)} />
+                <Existencias tecnicos={tecnicos} version={(filas ? filas.length : 0) + version} />
+              </>
+            )} />
         )}
+        {pestana === 'checklist' && <TabChecklist />}
         {pestana === 'mano_obra' && <TabCatalogo titulo="mano de obra" plural="mano de obra" ruta="/actividades/catalogos/mano-obra" id="id_mano_obra" />}
       </div>
     </AppLayout>

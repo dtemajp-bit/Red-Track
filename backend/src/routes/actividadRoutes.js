@@ -18,6 +18,7 @@ router.get('/catalogos/mano-obra', verificarAdmin, c.listarManoObra);
 router.post('/catalogos/mano-obra', verificarAdmin, c.crearManoObra);
 router.put('/catalogos/mano-obra/:id', verificarAdmin, c.actualizarManoObra);
 router.delete('/catalogos/mano-obra/:id', verificarAdmin, c.eliminarManoObra);
+router.post('/inventario/todos', verificarAdmin, c.agregarATodos);
 router.get('/inventario/:idTecnico', c.verInventarioTecnico);
 router.put('/inventario/:idTecnico', verificarAdmin, c.fijarInventarioTecnico);
 router.post('/inventario/:idTecnico/series', verificarAdmin, c.agregarSeriesTecnico);
@@ -29,8 +30,9 @@ router.post('/', verificarAdmin, c.crearActividad);
 router.get('/:id', c.obtenerActividad);
 router.put('/:id', verificarAdmin, c.actualizarActividad);
 router.delete('/:id', verificarAdmin, c.eliminarActividad);
+router.put('/:id/en-ruta', c.enRutaActividad);
 router.put('/:id/iniciar', c.iniciarActividad);
-router.put('/:id/cerrar', c.cerrarActividad);
+router.put('/:id/completar', c.completarActividad);
 router.put('/:id/reabrir', verificarAdmin, c.reabrirActividad);
 
 // Mano de obra e inventario usados en la actividad

@@ -13,6 +13,7 @@ import {
   IconLogout,
   IconMenu,
   IconTarget,
+  IconCheck,
 } from '../ui/Icons';
 
 const NAV_ITEMS = [
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { to: '/cobertura', label: 'Mapa de cobertura', icon: IconMap },
   { to: '/sincronizacion', label: 'Sincronización', icon: IconSync },
   { to: '/incidencias', label: 'Incidencias', icon: IconAlert },
+  { to: '/supervision', label: 'Supervisión', icon: IconCheck, soloGestor: true },
   { to: '/gestion', label: 'Gestionar actividades', icon: IconTarget, soloAdmin: true },
   { to: '/administracion', label: 'Administración', icon: IconUsers, soloAdmin: true },
   { to: '/reportes', label: 'Reportes', icon: IconReport },

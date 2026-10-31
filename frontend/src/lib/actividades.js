@@ -3,13 +3,17 @@
 export const esGestor = (rol) => ['administrador', 'supervisor'].includes(rol);
 export const esAdmin = (rol) => rol === 'administrador';
 
-// pendiente (amarillo, barra roja) -> en ruta (verde) -> cerrado (celeste)
+// pendiente (amarillo, barra roja) -> en ruta (verde) -> iniciada (morado) -> completado (celeste)
 export const ESTADOS = {
   pendiente: { etiqueta: 'Pendiente', cuadro: '#f2b705', barra: '#e5484d', fondo: '#fdf1dd', texto: '#a8680c' },
   en_ruta: { etiqueta: 'En ruta', cuadro: '#17a35a', barra: '#17a35a', fondo: '#e3f7ec', texto: '#0f7a42' },
-  cerrado: { etiqueta: 'Cerrado', cuadro: '#2f8fd8', barra: '#2f8fd8', fondo: '#e4f1fc', texto: '#1f6fae' },
+  iniciada: { etiqueta: 'Iniciada', cuadro: '#6b5bd2', barra: '#6b5bd2', fondo: '#eeebfb', texto: '#4a3bb0' },
+  completada: { etiqueta: 'Completado', cuadro: '#2f8fd8', barra: '#2f8fd8', fondo: '#e4f1fc', texto: '#1f6fae' },
 };
-export const ORDEN_ESTADOS = ['pendiente', 'en_ruta', 'cerrado'];
+export const ORDEN_ESTADOS = ['pendiente', 'en_ruta', 'iniciada', 'completada'];
+
+// Las cantidades de material y mano de obra son siempre enteros (1, 2, 3…), nunca 0.1 ni 0.5.
+export const esEntero = (valor) => /^\d+$/.test(String(valor).trim());
 
 const dos = (n) => String(n).padStart(2, '0');
 

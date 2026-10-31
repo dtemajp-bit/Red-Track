@@ -57,6 +57,9 @@ async function borrarUsuarioEnCascada(conexion, id) {
   await conexion.query('DELETE rn FROM ruta_nodos rn JOIN rutas r ON rn.id_ruta = r.id_ruta WHERE r.id_tecnico = ?', [id]);
   await conexion.query('DELETE FROM rutas WHERE id_tecnico = ?', [id]);
   await conexion.query('DELETE FROM registros_pendientes_sync WHERE id_usuario = ?', [id]);
+  await conexion.query('DELETE sr FROM supervision_resultados sr JOIN supervisiones s ON sr.id_supervision = s.id_supervision LEFT JOIN actividades a ON s.id_actividad = a.id_actividad WHERE s.id_supervisor = ? OR a.id_tecnico = ?', [id, id]);
+  await conexion.query('DELETE s FROM supervisiones s LEFT JOIN actividades a ON s.id_actividad = a.id_actividad WHERE s.id_supervisor = ? OR a.id_tecnico = ?', [id, id]);
+  await conexion.query('UPDATE series_material sm JOIN actividades a ON sm.id_actividad = a.id_actividad SET sm.id_actividad = NULL WHERE a.id_tecnico = ?', [id]);
   await conexion.query('DELETE am FROM actividad_materiales am JOIN actividades a ON am.id_actividad = a.id_actividad WHERE a.id_tecnico = ?', [id]);
   await conexion.query('DELETE mo FROM actividad_mano_obra mo JOIN actividades a ON mo.id_actividad = a.id_actividad WHERE a.id_tecnico = ?', [id]);
   await conexion.query('DELETE FROM actividades WHERE id_tecnico = ?', [id]);
@@ -79,6 +82,8 @@ async function limpiarDatosOperativos(req, res) {
     const [fotos] = await conexion.query('SELECT foto_url FROM nodos');
     await conexion.beginTransaction();
     const conteo = {};
+    await conexion.query('DELETE FROM supervision_resultados');
+    await conexion.query('DELETE FROM supervisiones');
     await conexion.query('UPDATE series_material SET id_actividad = NULL'); // las series vuelven a estar disponibles
     for (const [clave, tabla] of [
       ['material_de_actividades', 'actividad_materiales'],

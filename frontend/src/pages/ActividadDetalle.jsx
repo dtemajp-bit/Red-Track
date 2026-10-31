@@ -8,7 +8,9 @@ import { IconEdit, IconTrash } from '../ui/Icons';
 import cliente from '../api/cliente';
 import { useAuth } from '../context/AuthContext';
 import { avisar, confirmar } from '../lib/avisos';
-import { ESTADOS, duracion, esAdmin, esGestor, fechaLegible, horaLegible, mensajeError, ventana } from '../lib/actividades';
+import { ESTADOS, duracion, esAdmin, esEntero, esGestor, fechaLegible, horaLegible, mensajeError, ventana } from '../lib/actividades';
+
+const bloquearDecimales = (e) => ['.', ',', 'e', 'E', '-', '+'].includes(e.key) && e.preventDefault();
 
 function Dato({ etiqueta, valor }) {
   return (
@@ -19,12 +21,34 @@ function Dato({ etiqueta, valor }) {
   );
 }
 
-// Ventana para pedir una cantidad (usar material, cambiar cantidad, cerrar orden con notas).
-function ModalCantidad({ titulo, ayuda, inicial = '', max, onGuardar, onCerrar }) {
+// Datos de la orden (se usan en Detalles y en el reporte del administrador).
+function DatosOrden({ act, tecnico }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
+      <Dato etiqueta="Orden de trabajo" valor={act.orden_trabajo} />
+      {tecnico && <Dato etiqueta="Técnico" valor={act.tecnico} />}
+      <Dato etiqueta="Tipo" valor={act.tipo} />
+      <Dato etiqueta="Caja terminal" valor={act.caja_terminal} />
+      <Dato etiqueta="Fecha programada" valor={fechaLegible(act.fecha_programada)} />
+      <Dato etiqueta="Ventana de entrega" valor={ventana(act)} />
+      <Dato etiqueta="Cliente" valor={act.cliente} />
+      <Dato etiqueta="Teléfono" valor={act.telefono} />
+      <Dato etiqueta="Dirección" valor={act.direccion} />
+      <Dato etiqueta="En ruta desde" valor={horaLegible(act.en_ruta_en)} />
+      <Dato etiqueta="Inicio de la actividad" valor={horaLegible(act.iniciado_en)} />
+      <Dato etiqueta="Completada" valor={horaLegible(act.cerrado_en)} />
+      <Dato etiqueta="Duración del trabajo" valor={duracion(act.iniciado_en, act.cerrado_en)} />
+    </div>
+  );
+}
+
+// Pide una cantidad ENTERA (usar material, cambiar cantidad).
+function ModalCantidad({ titulo, ayuda, inicial = '1', max, onGuardar, onCerrar }) {
   const [valor, setValor] = useState(String(inicial));
   const [enviando, setEnviando] = useState(false);
   async function enviar(e) {
     e.preventDefault();
+    if (!esEntero(valor) || Number(valor) < 1) return avisar('La cantidad debe ser un número entero mayor a 0', 'error');
     setEnviando(true);
     try { await onGuardar(Number(valor)); } finally { setEnviando(false); }
   }
@@ -32,9 +56,9 @@ function ModalCantidad({ titulo, ayuda, inicial = '', max, onGuardar, onCerrar }
     <Modal titulo={titulo} onCerrar={onCerrar} ancho={380}>
       <form onSubmit={enviar}>
         {ayuda && <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>{ayuda}</p>}
-        <Etiqueta>Cantidad</Etiqueta>
-        <input type="number" min="0.01" step="0.01" max={max} required autoFocus value={valor}
-          onChange={(e) => setValor(e.target.value)} style={estiloCampo} />
+        <Etiqueta>Cantidad (número entero)</Etiqueta>
+        <input type="number" inputMode="numeric" min="1" step="1" max={max} required autoFocus value={valor}
+          onKeyDown={bloquearDecimales} onChange={(e) => setValor(e.target.value)} style={estiloCampo} />
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
           <button type="button" onClick={onCerrar} style={estiloBotonSecundario}>Cancelar</button>
           <button type="submit" disabled={enviando} style={estiloBotonPrimario}>Guardar</button>
@@ -44,7 +68,7 @@ function ModalCantidad({ titulo, ayuda, inicial = '', max, onGuardar, onCerrar }
   );
 }
 
-function ModalCerrar({ onGuardar, onCerrar }) {
+function ModalCompletar({ onGuardar, onCerrar }) {
   const [notas, setNotas] = useState('');
   const [enviando, setEnviando] = useState(false);
   async function enviar(e) {
@@ -53,16 +77,16 @@ function ModalCerrar({ onGuardar, onCerrar }) {
     try { await onGuardar(notas); } finally { setEnviando(false); }
   }
   return (
-    <Modal titulo="Cerrar orden" onCerrar={onCerrar} ancho={420}>
+    <Modal titulo="Completar orden" onCerrar={onCerrar} ancho={420}>
       <form onSubmit={enviar}>
         <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
-          Antes de cerrar, revisa que la mano de obra y el inventario estén completos.
+          Antes de completar, revisa que la mano de obra y el inventario estén completos.
         </p>
         <Etiqueta>Notas de cierre (opcional)</Etiqueta>
         <textarea rows={3} value={notas} onChange={(e) => setNotas(e.target.value)} style={{ ...estiloCampo, resize: 'vertical' }} />
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
           <button type="button" onClick={onCerrar} style={estiloBotonSecundario}>Cancelar</button>
-          <button type="submit" disabled={enviando} style={{ ...estiloBotonPrimario, background: ESTADOS.cerrado.cuadro }}>Cerrar orden</button>
+          <button type="submit" disabled={enviando} style={{ ...estiloBotonPrimario, background: ESTADOS.completada.cuadro }}>Completar orden</button>
         </div>
       </form>
     </Modal>
@@ -70,6 +94,7 @@ function ModalCerrar({ onGuardar, onCerrar }) {
 }
 
 const fila = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 2px', borderBottom: '1px solid var(--border)' };
+const subtitulo = { fontSize: 14, fontWeight: 700, margin: '18px 0 4px' };
 
 export default function ActividadDetalle() {
   const { id } = useParams();
@@ -83,6 +108,8 @@ export default function ActividadDetalle() {
   const [modal, setModal] = useState(null);
   const [trabajando, setTrabajando] = useState(false);
   const [nuevoMO, setNuevoMO] = useState({ id_mano_obra: '', cantidad: '1' });
+  const [escaneo, setEscaneo] = useState('');
+  const [visitas, setVisitas] = useState([]);
 
   const cargar = useCallback(async () => {
     try {
@@ -95,6 +122,9 @@ export default function ActividadDetalle() {
   }, [id]);
 
   useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => {
+    if (gestor) cliente.get(`/supervision/actividad/${id}`).then((r) => setVisitas(r.data)).catch(() => setVisitas([]));
+  }, [gestor, id]);
 
   async function ejecutar(promesa, exito) {
     try {
@@ -108,20 +138,27 @@ export default function ActividadDetalle() {
     }
   }
 
-  async function iniciar() {
+  async function avanzar(paso, exito) {
     setTrabajando(true);
-    await ejecutar(cliente.put(`/actividades/${id}/iniciar`), 'Orden iniciada: ahora estás en ruta');
+    await ejecutar(cliente.put(`/actividades/${id}/${paso}`), exito);
     setTrabajando(false);
   }
-  async function cerrar(notas) {
-    if (await ejecutar(cliente.put(`/actividades/${id}/cerrar`, { notas_cierre: notas }))) setModal(null);
+  async function completar(notas) {
+    if (await ejecutar(cliente.put(`/actividades/${id}/completar`, { notas_cierre: notas }))) setModal(null);
   }
   async function reabrir() {
-    const si = await confirmar({ titulo: 'Reabrir orden', mensaje: 'La actividad volverá a estar en ruta. ¿Continuar?', textoConfirmar: 'Reabrir' });
+    const si = await confirmar({ titulo: 'Reabrir orden', mensaje: 'La actividad volverá a estar iniciada para que el técnico la corrija. ¿Continuar?', textoConfirmar: 'Reabrir' });
     if (si) await ejecutar(cliente.put(`/actividades/${id}/reabrir`));
+  }
+  async function supervisar() {
+    try {
+      const { data } = await cliente.post('/supervision', { id_actividad: Number(id) });
+      navigate(`/supervision/${data.id_supervision}`);
+    } catch (err) { avisar(mensajeError(err, 'No se pudo agregar la visita de supervisión'), 'error'); }
   }
   async function agregarMO(e) {
     e.preventDefault();
+    if (!esEntero(nuevoMO.cantidad) || Number(nuevoMO.cantidad) < 1) return avisar('La cantidad debe ser un número entero mayor a 0', 'error');
     const ok = await ejecutar(cliente.post(`/actividades/${id}/mano-obra`, { id_mano_obra: Number(nuevoMO.id_mano_obra), cantidad: Number(nuevoMO.cantidad) }));
     if (ok) setNuevoMO({ id_mano_obra: '', cantidad: '1' });
   }
@@ -137,6 +174,17 @@ export default function ActividadDetalle() {
       : await ejecutar(cliente.put(`/actividades/${id}/${m.tipo === 'editar-mat' ? 'materiales' : 'mano-obra'}/${m.fila.id_linea}`, { cantidad }));
     if (ok) setModal(null);
   }
+  // Escáner de mano: escribe la serie y presiona Enter solo; se registra como usada si está en el inventario.
+  async function escanear(e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const codigo = escaneo.trim().toUpperCase();
+    if (!codigo) return;
+    const serie = act.recurso.flatMap((r) => r.series || []).find((s) => s.serie.toUpperCase() === codigo);
+    setEscaneo('');
+    if (!serie) return avisar(`La serie ${codigo} no está en el inventario de este técnico`, 'error');
+    await usarSerie(serie.id_serie);
+  }
 
   if (act === undefined || act === null) {
     return (
@@ -150,10 +198,19 @@ export default function ActividadDetalle() {
   }
 
   const meta = ESTADOS[act.estado];
-  const puedeEditar = act.puede_editar_lineas;
-  const motivo = !act.puede_operar ? 'Modo supervisión: solo el técnico responsable o el administrador pueden registrar mano de obra e inventario.' : act.estado === 'pendiente' ? 'Inicia la orden para registrar mano de obra e inventario.' : 'La orden está cerrada; solo el administrador puede modificarla.';
-  const pasos = act.estado === 'pendiente' ? 0 : act.estado === 'en_ruta' ? 1 : 2;
-  const pestanas = [['detalles', 'Detalles'], ['mano', `Mano de obra (${act.mano_obra.length})`], ['inventario', `Inventario (${act.materiales.length + act.series_instaladas.length})`]];
+  // El administrador (y el supervisor en órdenes ajenas) ven el reporte; el técnico trabaja la orden.
+  const lectura = admin || !act.puede_operar;
+  const puedeEditar = act.puede_editar_lineas && !lectura;
+  const pasos = { pendiente: 0, en_ruta: 1, iniciada: 2, completada: 3 }[act.estado];
+  const totalInstalado = act.materiales.length + act.series_instaladas.length;
+  const motivo = lectura
+    ? 'Vista de reporte: solo el técnico responsable registra mano de obra e inventario.'
+    : act.estado === 'completada'
+      ? 'La orden está completada; solo el administrador puede reabrirla.'
+      : 'Inicia la actividad en el domicilio del cliente para registrar mano de obra e inventario.';
+  const pestanas = lectura
+    ? [['detalles', 'Detalles'], ['mano', 'Reporte'], ['inventario', `Inventario (${totalInstalado})`]]
+    : [['detalles', 'Detalles'], ['mano', `Mano de obra (${act.mano_obra.length})`], ['inventario', `Inventario (${totalInstalado})`]];
 
   const accionLinea = (tipo, f, texto, ruta) => puedeEditar && (
     <div style={{ display: 'flex', gap: 6 }}>
@@ -162,10 +219,38 @@ export default function ActividadDetalle() {
     </div>
   );
 
+  const lineasMaterial = (
+    <>
+      {act.materiales.map((l) => (
+        <div key={`m${l.id_linea}`} style={fila}>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: 13.7, fontWeight: 600, overflowWrap: 'anywhere' }}>{l.descripcion}</p>
+            <p style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>{l.codigo} · {l.cantidad} {l.unidad}</p>
+          </div>
+          {accionLinea('editar-mat', l, `¿Quitar "${l.descripcion}"? Se devolverá a las existencias del técnico.`, `/actividades/${id}/materiales/${l.id_linea}`)}
+        </div>
+      ))}
+      {act.series_instaladas.map((l) => (
+        <div key={`s${l.id_serie}`} style={fila}>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: 13.7, overflowWrap: 'anywhere' }}>{l.descripcion}</p>
+            <p style={{ fontSize: 13.5, fontWeight: 700, overflowWrap: 'anywhere' }}>{l.serie}</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <strong style={{ fontSize: 18 }}>1</strong>
+            {puedeEditar && (
+              <button type="button" className="rt-btn-icono" aria-label="Quitar" onClick={() => quitar(`/actividades/${id}/series/${l.id_serie}`, `¿Quitar la serie ${l.serie}? Volverá a las existencias del técnico.`)}><IconTrash size={15} /></button>
+            )}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+
   return (
     <AppLayout title="Detalle de actividad">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 860 }}>
-        <button type="button" onClick={() => navigate('/panel')} style={{ ...estiloBotonSecundario, alignSelf: 'flex-start' }}>‹ Volver a la lista</button>
+        <button type="button" onClick={() => navigate(-1)} style={{ ...estiloBotonSecundario, alignSelf: 'flex-start' }}>‹ Volver</button>
 
         <section style={{ background: 'var(--card)', border: '1px solid var(--border)', borderTop: `5px solid ${meta.barra}`, borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', padding: 18 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
@@ -178,8 +263,12 @@ export default function ActividadDetalle() {
           </div>
 
           <div style={{ background: 'var(--navy)', color: '#e6ecf5', borderRadius: 10, padding: '12px 14px', marginTop: 14 }}>
-            <p style={{ fontSize: 12.5, marginBottom: 8 }}>Flujo de trabajo de esta actividad · Pasos {pasos}/2</p>
-            {[['Iniciar orden (en ruta): avisa que te diriges al domicilio y puedes comenzar tu actividad.', 1], ['Cerrar orden: al terminar, con mano de obra e inventario registrados.', 2]].map(([t, n]) => (
+            <p style={{ fontSize: 12.5, marginBottom: 8 }}>Flujo de trabajo de esta actividad · Pasos {pasos}/3</p>
+            {[
+              ['En ruta: avisa que te diriges al domicilio del cliente.', 1],
+              ['Iniciar actividad: ya estás en el domicilio; comienza el trabajo y registra mano de obra e inventario.', 2],
+              ['Completar orden: al terminar, con todo registrado.', 3],
+            ].map(([t, n]) => (
               <div key={n} style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: 13, padding: '3px 0' }}>
                 <span style={{ width: 14, height: 14, borderRadius: '50%', flexShrink: 0, border: '2px solid #9fb0c8', background: pasos >= n ? '#17a35a' : 'transparent', borderColor: pasos >= n ? '#17a35a' : '#9fb0c8' }} />
                 <span style={{ opacity: pasos >= n ? 0.7 : 1 }}>{t}</span>
@@ -187,22 +276,29 @@ export default function ActividadDetalle() {
             ))}
           </div>
 
-          <div style={{ marginTop: 14 }}>
-            {act.puede_operar && act.estado === 'pendiente' && (
-              <button type="button" disabled={trabajando} onClick={iniciar} style={{ ...estiloBotonPrimario, width: '100%', padding: '13px 16px', fontSize: 15, background: ESTADOS.en_ruta.cuadro }}>Iniciar orden</button>
+          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {!lectura && act.estado === 'pendiente' && (
+              <button type="button" disabled={trabajando} onClick={() => avanzar('en-ruta', 'Estás en ruta hacia el cliente')} style={{ ...estiloBotonPrimario, width: '100%', padding: '13px 16px', fontSize: 15, background: ESTADOS.en_ruta.cuadro }}>En ruta</button>
             )}
-            {act.puede_operar && act.estado === 'en_ruta' && (
-              <button type="button" onClick={() => setModal({ tipo: 'cerrar' })} style={{ ...estiloBotonPrimario, width: '100%', padding: '13px 16px', fontSize: 15, background: ESTADOS.cerrado.cuadro }}>Cerrar orden</button>
+            {!lectura && act.estado === 'en_ruta' && (
+              <button type="button" disabled={trabajando} onClick={() => avanzar('iniciar', 'Actividad iniciada en el domicilio del cliente')} style={{ ...estiloBotonPrimario, width: '100%', padding: '13px 16px', fontSize: 15, background: ESTADOS.iniciada.cuadro }}>Iniciar actividad</button>
             )}
-            {!act.puede_operar && (
+            {!lectura && act.estado === 'iniciada' && (
+              <button type="button" onClick={() => setModal({ tipo: 'completar' })} style={{ ...estiloBotonPrimario, width: '100%', padding: '13px 16px', fontSize: 15, background: ESTADOS.completada.cuadro }}>Completar orden</button>
+            )}
+            {!lectura && act.estado === 'completada' && (
+              <p style={{ fontSize: 13.5, color: ESTADOS.completada.texto, fontWeight: 600, textAlign: 'center' }}>Orden completada</p>
+            )}
+            {admin && act.estado === 'completada' && (
+              <button type="button" onClick={reabrir} style={{ ...estiloBotonSecundario, width: '100%', padding: '12px 16px' }}>Reabrir orden</button>
+            )}
+            {lectura && (
               <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center' }}>
-                Modo supervisión: puedes ver esta actividad, pero solo el técnico responsable o el administrador pueden modificarla.
+                {admin ? 'Vista de reporte: el técnico responsable avanza la orden y registra su trabajo.' : 'Modo supervisión: puedes ver esta actividad, pero solo el técnico responsable la modifica.'}
               </p>
             )}
-            {act.puede_operar && act.estado === 'cerrado' && (
-              admin
-                ? <button type="button" onClick={reabrir} style={{ ...estiloBotonSecundario, width: '100%', padding: '12px 16px' }}>Reabrir orden</button>
-                : <p style={{ fontSize: 13.5, color: ESTADOS.cerrado.texto, fontWeight: 600, textAlign: 'center' }}>Orden cerrada</p>
+            {gestor && !admin && lectura && (
+              <button type="button" onClick={supervisar} style={{ ...estiloBotonPrimario, width: '100%', padding: '12px 16px' }}>Supervisar esta orden</button>
             )}
           </div>
         </section>
@@ -220,18 +316,7 @@ export default function ActividadDetalle() {
 
         {pestana === 'detalles' && (
           <Card title="Detalles de la actividad">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
-              <Dato etiqueta="Tipo" valor={act.tipo} />
-              <Dato etiqueta="Caja terminal" valor={act.caja_terminal} />
-              <Dato etiqueta="Fecha programada" valor={fechaLegible(act.fecha_programada)} />
-              <Dato etiqueta="Ventana de entrega" valor={ventana(act)} />
-              <Dato etiqueta="Cliente" valor={act.cliente} />
-              <Dato etiqueta="Teléfono" valor={act.telefono} />
-              <Dato etiqueta="Dirección" valor={act.direccion} />
-              <Dato etiqueta="Inicio" valor={horaLegible(act.iniciado_en)} />
-              <Dato etiqueta="Cierre" valor={horaLegible(act.cerrado_en)} />
-              <Dato etiqueta="Duración" valor={duracion(act.iniciado_en, act.cerrado_en)} />
-            </div>
+            <DatosOrden act={act} />
             <div style={{ marginTop: 16 }}>
               <p style={{ fontSize: 12, color: 'var(--text-soft)', marginBottom: 4 }}>Lo que debes hacer</p>
               <p style={{ fontSize: 14, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{act.descripcion || 'El administrador no agregó instrucciones.'}</p>
@@ -245,7 +330,45 @@ export default function ActividadDetalle() {
           </Card>
         )}
 
-        {pestana === 'mano' && (
+        {pestana === 'mano' && lectura && (
+          <>
+            <Card title="Reporte de la orden" subtitle="Datos de la orden con la mano de obra y el material utilizados">
+              <DatosOrden act={act} tecnico />
+              <h4 style={subtitulo}>Mano de obra utilizada</h4>
+              {act.mano_obra.length === 0 && <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>No se registró mano de obra.</p>}
+              {act.mano_obra.map((l) => (
+                <div key={l.id_linea} style={fila}>
+                  <p style={{ fontSize: 13.7, fontWeight: 600, overflowWrap: 'anywhere' }}>{l.codigo} · {l.descripcion}</p>
+                  <strong style={{ fontSize: 16 }}>{l.cantidad}</strong>
+                </div>
+              ))}
+              <h4 style={subtitulo}>Material utilizado</h4>
+              {totalInstalado === 0 && <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>No se registró material.</p>}
+              {lineasMaterial}
+              {act.notas_cierre && (
+                <>
+                  <h4 style={subtitulo}>Notas de cierre</h4>
+                  <p style={{ fontSize: 14, whiteSpace: 'pre-wrap' }}>{act.notas_cierre}</p>
+                </>
+              )}
+            </Card>
+            {visitas.length > 0 && (
+              <Card title="Supervisión de la orden" subtitle="Calificaciones con el check list">
+                {visitas.map((v) => (
+                  <div key={v.id_supervision} style={fila}>
+                    <div>
+                      <p style={{ fontSize: 13.7, fontWeight: 600 }}>{v.supervisor}</p>
+                      <p style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>{v.fecha} · {v.estado === 'completada' ? `Calificación ${v.puntaje}%` : 'Visita pendiente'}</p>
+                    </div>
+                    {v.estado === 'completada' && <strong style={{ fontSize: 18 }}>{v.puntaje}%</strong>}
+                  </div>
+                ))}
+              </Card>
+            )}
+          </>
+        )}
+
+        {pestana === 'mano' && !lectura && (
           <Card title="Mano de obra" subtitle="Trabajo realizado en esta actividad">
             {act.mano_obra.length === 0 && <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Aún no se registró mano de obra.</p>}
             {act.mano_obra.map((l) => (
@@ -271,7 +394,8 @@ export default function ActividadDetalle() {
                   </div>
                   <div style={{ width: 110 }}>
                     <Etiqueta>Cantidad</Etiqueta>
-                    <input type="number" min="0.01" step="0.01" required value={nuevoMO.cantidad} onChange={(e) => setNuevoMO({ ...nuevoMO, cantidad: e.target.value })} style={estiloCampo} />
+                    <input type="number" inputMode="numeric" min="1" step="1" required value={nuevoMO.cantidad} onKeyDown={bloquearDecimales}
+                      onChange={(e) => setNuevoMO({ ...nuevoMO, cantidad: e.target.value })} style={estiloCampo} />
                   </div>
                   <button type="submit" style={estiloBotonPrimario}>Agregar</button>
                 </form>
@@ -284,35 +408,30 @@ export default function ActividadDetalle() {
 
         {pestana === 'inventario' && (
           <>
-            <Card title={`Instalado (${act.materiales.length + act.series_instaladas.length})`} subtitle="Material usado en esta actividad">
-              {act.materiales.length + act.series_instaladas.length === 0 && <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Aún no se instaló material.</p>}
-              {act.materiales.map((l) => (
-                <div key={`m${l.id_linea}`} style={fila}>
-                  <div style={{ minWidth: 0 }}>
-                    <p style={{ fontSize: 13.7, fontWeight: 600, overflowWrap: 'anywhere' }}>{l.descripcion}</p>
-                    <p style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>{l.codigo} · {l.cantidad} {l.unidad}</p>
-                  </div>
-                  {accionLinea('editar-mat', l, `¿Quitar "${l.descripcion}"? Se devolverá a las existencias del técnico.`, `/actividades/${id}/materiales/${l.id_linea}`)}
-                </div>
-              ))}
-              {act.series_instaladas.map((l) => (
-                <div key={`s${l.id_serie}`} style={fila}>
-                  <div style={{ minWidth: 0 }}>
-                    <p style={{ fontSize: 13.7, overflowWrap: 'anywhere' }}>{l.descripcion}</p>
-                    <p style={{ fontSize: 13.5, fontWeight: 700, overflowWrap: 'anywhere' }}>{l.serie}</p>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <strong style={{ fontSize: 18 }}>1</strong>
-                    {puedeEditar && (
-                      <button type="button" className="rt-btn-icono" aria-label="Quitar" onClick={() => quitar(`/actividades/${id}/series/${l.id_serie}`, `¿Quitar la serie ${l.serie}? Volverá a las existencias del técnico.`)}><IconTrash size={15} /></button>
-                    )}
+            <Card title={`Instalado (${totalInstalado})`} subtitle={lectura ? 'Material usado junto con los datos de la orden' : 'Material usado en esta actividad'}>
+              {lectura && (
+                <div style={{ marginBottom: 10, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
+                    <Dato etiqueta="Orden de trabajo" valor={act.orden_trabajo} />
+                    <Dato etiqueta="Técnico" valor={act.tecnico} />
+                    <Dato etiqueta="Cliente" valor={act.cliente} />
+                    <Dato etiqueta="Fecha" valor={fechaLegible(act.fecha_programada)} />
                   </div>
                 </div>
-              ))}
-              {!puedeEditar && <p style={{ fontSize: 13, color: 'var(--orange)', marginTop: 12 }}>{motivo}</p>}
+              )}
+              {totalInstalado === 0 && <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Aún no se instaló material.</p>}
+              {lineasMaterial}
+              {!puedeEditar && !lectura && <p style={{ fontSize: 13, color: 'var(--orange)', marginTop: 12 }}>{motivo}</p>}
             </Card>
 
             <Card title={`Recurso (${act.recurso.length})`} subtitle={act.estado === 'pendiente' ? 'Todo el material disponible del técnico' : 'Material disponible del técnico'}>
+              {puedeEditar && act.recurso.some((r) => r.con_serie) && (
+                <div style={{ marginBottom: 12 }}>
+                  <Etiqueta>Escanear serie (escáner de mano) o escribirla y pulsar Enter</Etiqueta>
+                  <input value={escaneo} onChange={(e) => setEscaneo(e.target.value)} onKeyDown={escanear} placeholder="Escanea el código del equipo"
+                    autoComplete="off" style={{ ...estiloCampo, fontFamily: 'monospace' }} aria-label="Escanear serie" />
+                </div>
+              )}
               {act.recurso.length === 0 && (
                 <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                   No hay existencias asignadas a este técnico. El administrador las carga en Gestionar actividades → Materiales e inventario.
@@ -354,12 +473,12 @@ export default function ActividadDetalle() {
         )}
       </div>
 
-      {modal?.tipo === 'cerrar' && <ModalCerrar onGuardar={cerrar} onCerrar={() => setModal(null)} />}
-      {modal && modal.tipo !== 'cerrar' && (
+      {modal?.tipo === 'completar' && <ModalCompletar onGuardar={completar} onCerrar={() => setModal(null)} />}
+      {modal && modal.tipo !== 'completar' && (
         <ModalCantidad
           titulo={modal.tipo === 'usar' ? 'Usar material' : 'Cambiar cantidad'}
           ayuda={modal.tipo === 'usar' ? `${modal.fila.descripcion} · disponible: ${modal.fila.cantidad}` : modal.fila.descripcion}
-          inicial={modal.tipo === 'usar' ? '' : modal.fila.cantidad}
+          inicial={modal.tipo === 'usar' ? '1' : modal.fila.cantidad}
           max={modal.tipo === 'usar' ? modal.fila.cantidad : undefined}
           onGuardar={guardarCantidad} onCerrar={() => setModal(null)}
         />

@@ -1,17 +1,17 @@
 const pool = require('../config/db');
 const { MANO_OBRA, MATERIALES, fusionarCatalogo, leerLineas } = require('../db/catalogoInicial');
 
-// Estados de una actividad: pendiente -> en_ruta (al iniciar la orden) -> cerrado.
+// Estados: pendiente -> en_ruta (voy hacia el cliente) -> iniciada (ya en el sitio; se registra mano de obra e inventario) -> completada.
 const esGestor = (rol) => ['administrador', 'supervisor'].includes(rol);
 const esAdmin = (rol) => rol === 'administrador';
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const texto = (v, max) => (v === undefined || v === null || String(v).trim() === '' ? null : String(v).trim().slice(0, max));
-const numero = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.round(n * 100) / 100 : NaN;
-};
+// Las cantidades siempre son números enteros (no se aceptan decimales como 0.1).
+const entero = (v) => (/^\d+$/.test(String(v).trim()) ? Number(v) : NaN);
+const numero = entero;
+const ESTADOS = ['pendiente', 'en_ruta', 'iniciada', 'completada'];
 
 function error500(res, mensaje, error) {
   console.error(mensaje, error);
@@ -46,8 +46,8 @@ function permisoLineas(req, act) {
   if (act.id_tecnico !== req.usuario.id_usuario) {
     return { codigo: 403, mensaje: esGestor(req.usuario.rol) ? 'Como supervisor solo puedes supervisar esta actividad' : 'Esta actividad no es tuya' };
   }
-  if (act.estado === 'pendiente') return { codigo: 409, mensaje: 'Inicia la orden para registrar mano de obra e inventario' };
-  if (act.estado === 'cerrado') return { codigo: 409, mensaje: 'La orden está cerrada; pide al administrador que la reabra' };
+  if (act.estado === 'pendiente' || act.estado === 'en_ruta') return { codigo: 409, mensaje: 'Pulsa "Iniciar actividad" para registrar mano de obra e inventario' };
+  if (act.estado === 'completada') return { codigo: 409, mensaje: 'La orden está completada; pide al administrador que la reabra' };
   return null;
 }
 
@@ -62,7 +62,7 @@ async function listarActividades(req, res) {
     condiciones.push('a.id_tecnico = ?'); valores.push(req.usuario.id_usuario);
   }
   if (fecha && FECHA.test(fecha)) { condiciones.push('a.fecha_programada = ?'); valores.push(fecha); }
-  if (estado && ['pendiente', 'en_ruta', 'cerrado'].includes(estado)) { condiciones.push('a.estado = ?'); valores.push(estado); }
+  if (estado && ESTADOS.includes(estado)) { condiciones.push('a.estado = ?'); valores.push(estado); }
   try {
     const [filas] = await pool.query(
       `SELECT ${COLUMNAS_ACTIVIDAD}
@@ -232,18 +232,22 @@ async function cambiarEstado(req, res, desde, hacia, extra) {
   } catch (e) { error500(res, 'Error al cambiar el estado de la actividad:', e); }
 }
 
-const iniciarActividad = (req, res) => cambiarEstado(req, res, 'pendiente', 'en_ruta', {
-  verbo: 'iniciar', ok: 'Orden iniciada: la actividad está en ruta',
-  sql: "UPDATE actividades SET estado = 'en_ruta', iniciado_en = NOW() WHERE id_actividad = ?",
+const enRutaActividad = (req, res) => cambiarEstado(req, res, 'pendiente', 'en_ruta', {
+  verbo: 'salir en ruta', ok: 'Estás en ruta hacia el cliente',
+  sql: "UPDATE actividades SET estado = 'en_ruta' WHERE id_actividad = ?",
 });
-const cerrarActividad = (req, res) => cambiarEstado(req, res, 'en_ruta', 'cerrado', {
-  verbo: 'cerrar', ok: 'Orden cerrada correctamente',
-  sql: "UPDATE actividades SET estado = 'cerrado', cerrado_en = NOW(), notas_cierre = ? WHERE id_actividad = ?",
+const iniciarActividad = (req, res) => cambiarEstado(req, res, 'en_ruta', 'iniciada', {
+  verbo: 'iniciar', ok: 'Actividad iniciada: ya puedes registrar mano de obra e inventario',
+  sql: "UPDATE actividades SET estado = 'iniciada', iniciado_en = NOW() WHERE id_actividad = ?",
+});
+const completarActividad = (req, res) => cambiarEstado(req, res, 'iniciada', 'completada', {
+  verbo: 'completar', ok: 'Orden completada correctamente',
+  sql: "UPDATE actividades SET estado = 'completada', cerrado_en = NOW(), notas_cierre = ? WHERE id_actividad = ?",
   valores: (r) => [texto(r.body && r.body.notas_cierre, 2000)],
 });
-const reabrirActividad = (req, res) => cambiarEstado(req, res, 'cerrado', 'en_ruta', {
-  verbo: 'reabrir', ok: 'Orden reabierta: la actividad vuelve a estar en ruta',
-  sql: "UPDATE actividades SET estado = 'en_ruta', cerrado_en = NULL WHERE id_actividad = ?",
+const reabrirActividad = (req, res) => cambiarEstado(req, res, 'completada', 'iniciada', {
+  verbo: 'reabrir', ok: 'Orden reabierta: vuelve a estar iniciada',
+  sql: "UPDATE actividades SET estado = 'iniciada', cerrado_en = NULL WHERE id_actividad = ?",
 });
 
 // ---------------------------------------------------------------- técnicos
@@ -375,7 +379,7 @@ async function fijarInventarioTecnico(req, res) {
   const idTecnico = Number(req.params.idTecnico);
   const id_material = Number(req.body.id_material);
   const cantidad = numero(req.body.cantidad);
-  if (!idTecnico || !id_material || !(cantidad >= 0)) return res.status(400).json({ mensaje: 'Material y cantidad (0 o más) son requeridos' });
+  if (!idTecnico || !id_material || !(cantidad >= 0)) return res.status(400).json({ mensaje: 'Material y cantidad (número entero, 0 o más) son requeridos' });
   try {
     if (!(await tecnicoValido(idTecnico))) return res.status(400).json({ mensaje: 'El técnico no existe o está inactivo' });
     const [[m]] = await pool.query('SELECT id_material, con_serie FROM materiales WHERE id_material = ?', [id_material]);
@@ -386,6 +390,27 @@ async function fijarInventarioTecnico(req, res) {
        ON DUPLICATE KEY UPDATE cantidad = VALUES(cantidad)`, [idTecnico, id_material, cantidad]);
     res.json({ mensaje: 'Existencias actualizadas' });
   } catch (e) { error500(res, 'Error al actualizar existencias:', e); }
+}
+
+// Suma la misma cantidad de un material (sin serie) a todos los técnicos y supervisores activos.
+async function agregarATodos(req, res) {
+  const id_material = Number(req.body.id_material);
+  const cantidad = entero(req.body.cantidad);
+  if (!id_material || !(cantidad > 0)) return res.status(400).json({ mensaje: 'Elige el material e indica una cantidad entera mayor a 0' });
+  try {
+    const [[m]] = await pool.query('SELECT con_serie FROM materiales WHERE id_material = ? AND activo = 1', [id_material]);
+    if (!m) return res.status(404).json({ mensaje: 'Material no encontrado' });
+    if (m.con_serie) return res.status(400).json({ mensaje: 'Este material se controla por serie: agrégalo técnico por técnico con su escáner' });
+    const [tecnicos] = await pool.query(
+      `SELECT u.id_usuario FROM usuarios u JOIN roles r ON u.id_rol = r.id_rol
+       WHERE u.activo = 1 AND r.nombre IN ('tecnico', 'supervisor')`);
+    if (tecnicos.length === 0) return res.status(400).json({ mensaje: 'No hay técnicos activos' });
+    await pool.query(
+      `INSERT INTO inventario_tecnico (id_tecnico, id_material, cantidad) VALUES ?
+       ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
+      [tecnicos.map((t) => [t.id_usuario, id_material, cantidad])]);
+    res.json({ tecnicos: tecnicos.length, mensaje: `Se sumaron ${cantidad} a ${tecnicos.length} técnico(s)` });
+  } catch (e) { error500(res, 'Error al agregar a todos:', e); }
 }
 
 async function devolverExistencia(conexion, idTecnico, idMaterial, cantidad) {
@@ -409,7 +434,7 @@ async function conActividad(req, res, accion) {
 const agregarManoObra = (req, res) => conActividad(req, res, async (act) => {
   const id_mano_obra = Number(req.body.id_mano_obra);
   const cantidad = numero(req.body.cantidad);
-  if (!id_mano_obra || !(cantidad > 0)) return res.status(400).json({ mensaje: 'Elige la mano de obra e indica una cantidad mayor a 0' });
+  if (!id_mano_obra || !(cantidad > 0)) return res.status(400).json({ mensaje: 'Elige la mano de obra e indica una cantidad entera mayor a 0' });
   const [[m]] = await pool.query('SELECT id_mano_obra FROM mano_obra_catalogo WHERE id_mano_obra = ? AND activo = 1', [id_mano_obra]);
   if (!m) return res.status(404).json({ mensaje: 'Mano de obra no encontrada en el catálogo' });
   await pool.query(
@@ -420,7 +445,7 @@ const agregarManoObra = (req, res) => conActividad(req, res, async (act) => {
 
 const cambiarManoObra = (req, res) => conActividad(req, res, async (act) => {
   const cantidad = numero(req.body.cantidad);
-  if (!(cantidad > 0)) return res.status(400).json({ mensaje: 'La cantidad debe ser mayor a 0' });
+  if (!(cantidad > 0)) return res.status(400).json({ mensaje: 'La cantidad debe ser un número entero mayor a 0' });
   const [r] = await pool.query('UPDATE actividad_mano_obra SET cantidad = ? WHERE id_linea = ? AND id_actividad = ?', [cantidad, req.params.idLinea, act.id_actividad]);
   if (r.affectedRows === 0) return res.status(404).json({ mensaje: 'Línea no encontrada' });
   res.json({ mensaje: 'Cantidad actualizada' });
@@ -459,7 +484,7 @@ async function descontar(conexion, idTecnico, idMaterial, cantidad) {
 const agregarMaterial = (req, res) => conActividad(req, res, (act) => {
   const id_material = Number(req.body.id_material);
   const cantidad = numero(req.body.cantidad);
-  if (!id_material || !(cantidad > 0)) return res.status(400).json({ mensaje: 'Elige el material e indica una cantidad mayor a 0' });
+  if (!id_material || !(cantidad > 0)) return res.status(400).json({ mensaje: 'Elige el material e indica una cantidad entera mayor a 0' });
   return movimientoMaterial(req, res, act, async (conexion) => {
     const [[m]] = await conexion.query('SELECT id_material, con_serie FROM materiales WHERE id_material = ? AND activo = 1', [id_material]);
     if (!m) return { codigo: 404, mensaje: 'Material no encontrado en el catálogo' };
@@ -475,11 +500,11 @@ const agregarMaterial = (req, res) => conActividad(req, res, (act) => {
 
 const cambiarMaterial = (req, res) => conActividad(req, res, (act) => {
   const cantidad = numero(req.body.cantidad);
-  if (!(cantidad > 0)) return res.status(400).json({ mensaje: 'La cantidad debe ser mayor a 0' });
+  if (!(cantidad > 0)) return res.status(400).json({ mensaje: 'La cantidad debe ser un número entero mayor a 0' });
   return movimientoMaterial(req, res, act, async (conexion) => {
     const [[linea]] = await conexion.query('SELECT id_material, cantidad + 0 AS cantidad FROM actividad_materiales WHERE id_linea = ? AND id_actividad = ? FOR UPDATE', [req.params.idLinea, act.id_actividad]);
     if (!linea) return { codigo: 404, mensaje: 'Línea no encontrada' };
-    const diferencia = Math.round((cantidad - Number(linea.cantidad)) * 100) / 100;
+    const diferencia = cantidad - Number(linea.cantidad);
     if (diferencia > 0) {
       const falla = await descontar(conexion, act.id_tecnico, linea.id_material, diferencia);
       if (falla) return falla;
@@ -563,7 +588,7 @@ const quitarSerie = (req, res) => conActividad(req, res, async (act) => {
 
 module.exports = {
   listarActividades, obtenerActividad, crearActividad, actualizarActividad, eliminarActividad,
-  iniciarActividad, cerrarActividad, reabrirActividad, listarTecnicos,
+  enRutaActividad, iniciarActividad, completarActividad, reabrirActividad, agregarATodos, listarTecnicos,
   listarMateriales: mat.listar, crearMaterial: mat.crear, actualizarMaterial: mat.actualizar, eliminarMaterial: mat.eliminar,
   listarManoObra: mo.listar, crearManoObra: mo.crear, actualizarManoObra: mo.actualizar, eliminarManoObra: mo.eliminar,
   importarMateriales, importarManoObra, verInventarioTecnico, fijarInventarioTecnico, agregarSeriesTecnico, eliminarSerie, usarSeries, quitarSerie,

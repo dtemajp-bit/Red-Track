@@ -6,6 +6,7 @@
 //  4) Crea el primer administrador si defines ADMIN_EMAIL y ADMIN_PASSWORD.
 const fs = require('fs');
 const { cargarCatalogosIniciales } = require('./catalogoInicial');
+const { prepararSupervision } = require('./supervisionInicial');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
@@ -150,6 +151,8 @@ async function inicializarBaseDeDatos() {
   // Estado de la cuenta: activo, suspendido o inactivo (ya no está). "activo" sigue indicando si puede entrar.
   await asegurarColumna('usuarios', 'estado_cuenta', "VARCHAR(20) NOT NULL DEFAULT 'activo'");
   await pool.query("UPDATE usuarios SET estado_cuenta = 'inactivo' WHERE activo = 0 AND estado_cuenta = 'activo'");
+
+  await prepararSupervision(pool);
 
   try {
     await cargarCatalogosIniciales(pool);

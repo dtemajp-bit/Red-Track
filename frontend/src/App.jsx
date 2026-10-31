@@ -10,6 +10,8 @@ import Administracion from './pages/Administracion';
 import Reportes from './pages/Reportes';
 import ActividadDetalle from './pages/ActividadDetalle';
 import GestionActividades from './pages/GestionActividades';
+import Supervision from './pages/Supervision';
+import SupervisionDetalle from './pages/SupervisionDetalle';
 import Avisos from './ui/Avisos';
 
 function RutaPrivada({ children }) {
@@ -22,6 +24,13 @@ function RutaAdmin({ children }) {
   const { usuario } = useAuth();
   if (!usuario) return <Navigate to="/login" replace />;
   return usuario.rol === 'administrador' ? children : <Navigate to="/panel" replace />;
+}
+
+// Administrador y supervisor: ruta de supervisión y calificación de órdenes.
+function RutaGestor({ children }) {
+  const { usuario } = useAuth();
+  if (!usuario) return <Navigate to="/login" replace />;
+  return ['administrador', 'supervisor'].includes(usuario.rol) ? children : <Navigate to="/panel" replace />;
 }
 
 function App() {
@@ -39,6 +48,8 @@ function App() {
           <Route path="/administracion" element={<RutaAdmin><Administracion /></RutaAdmin>} />
           <Route path="/actividad/:id" element={<RutaPrivada><ActividadDetalle /></RutaPrivada>} />
           <Route path="/gestion" element={<RutaAdmin><GestionActividades /></RutaAdmin>} />
+          <Route path="/supervision" element={<RutaGestor><Supervision /></RutaGestor>} />
+          <Route path="/supervision/:id" element={<RutaGestor><SupervisionDetalle /></RutaGestor>} />
           <Route path="/reportes" element={<RutaPrivada><Reportes /></RutaPrivada>} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
