@@ -94,7 +94,7 @@ export default function Incidencias() {
 
   return (
     <AppLayout title="Incidencias">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+      <div className="rt-colapsa" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
         <Card title="Reportar incidencia">
           <form onSubmit={registrar} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>

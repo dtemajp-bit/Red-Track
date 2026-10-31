@@ -247,6 +247,24 @@ input:focus, select:focus, textarea:focus { border-color: var(--celeste) !import
   .rt-sidebar > div:last-child { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important; flex-shrink: 0; }
 }
 
+/* ============ Móvil: tarjetas y formularios sin desbordes ============ */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+input, select, textarea { max-width: 100%; min-width: 0; }
+.rt-contenido { min-width: 0; }
+@media (max-width: 900px) {
+  .rt-colapsa { grid-template-columns: minmax(0, 1fr) !important; }
+  .rt-card-cab > div:last-child:not(:first-child) { width: 100%; }
+  .rt-card-cab > div:last-child:not(:first-child) > * { max-width: 100%; }
+  section { max-width: 100%; }
+}
+@media (max-width: 900px) {
+  table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+@media (max-width: 560px) {
+  h2 { overflow-wrap: anywhere; }
+  .rt-card-cab > div:last-child:not(:first-child) { justify-content: flex-start !important; }
+}
+
 /* ============ Mapa de cobertura: adaptable a celular ============ */
 .rt-mapa-grid { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 20px; align-items: start; }
 .rt-mapa-lienzo { aspect-ratio: 16 / 9; }

@@ -248,7 +248,7 @@ export default function Administracion() {
           )
         }
       >
-        <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 16 }}>
           {[
             { id: 'usuarios', label: 'Usuarios' },
             { id: 'zonas', label: 'Zonas' },
@@ -284,6 +284,7 @@ export default function Administracion() {
 
         {tab === 'usuarios' && mostrarForm && (
           <form
+            className="rt-colapsa"
             onSubmit={crearTecnico}
             style={{
               display: 'grid',
@@ -364,6 +365,7 @@ export default function Administracion() {
 
         {tab === 'zonas' && mostrarFormZona && (
           <form
+            className="rt-colapsa"
             onSubmit={crearZona}
             style={{
               display: 'grid',
@@ -551,7 +553,7 @@ export default function Administracion() {
                 style={estiloCampo}
               />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="rt-colapsa" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
                 <Etiqueta>Rol</Etiqueta>
                 <select

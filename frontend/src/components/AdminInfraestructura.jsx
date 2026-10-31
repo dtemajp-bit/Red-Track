@@ -210,7 +210,7 @@ export default function AdminInfraestructura({ zonas }) {
       {editando && (
         <Modal titulo={`Editar ${editando.codigo}`} onCerrar={() => setEditando(null)}>
           <form onSubmit={guardar} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="rt-colapsa" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
                 <Etiqueta>Código</Etiqueta>
                 <input required value={editando.codigo} onChange={(e) => setEditando({ ...editando, codigo: e.target.value })} style={estiloCampo} />

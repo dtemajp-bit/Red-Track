@@ -208,7 +208,7 @@ export default function AdminIncidencias() {
                 style={{ ...estiloCampo, resize: 'vertical' }}
               />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="rt-colapsa" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
                 <Etiqueta>Prioridad</Etiqueta>
                 <select value={editando.prioridad} onChange={(e) => setEditando({ ...editando, prioridad: e.target.value })} style={estiloCampo}>

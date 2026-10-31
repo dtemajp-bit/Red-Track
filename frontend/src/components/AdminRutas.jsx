@@ -133,7 +133,7 @@ export default function AdminRutas({ tecnicos, mostrarForm, onCerrarForm }) {
           onSubmit={guardar}
           style={{ padding: 14, marginBottom: 16, border: '1px solid var(--border)', borderRadius: 8 }}
         >
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+          <div className="rt-colapsa" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
             <input
               required
               placeholder="Nombre de la ruta"

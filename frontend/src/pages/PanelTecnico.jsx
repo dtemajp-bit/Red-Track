@@ -49,7 +49,7 @@ export default function PanelTecnico() {
 
   return (
     <AppLayout title="Panel del técnico">
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 20, alignItems: 'start' }}>
+      <div className="rt-colapsa" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 20, alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
         <ListaActividades />
         <Card
